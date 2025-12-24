@@ -21,13 +21,13 @@
         }
       },
       "downstream": [
-        { "to_block_name": "ad", "details": "gRPC call" },
-        { "to_block_name": "recommendation", "details": "gRPC call" },
-        { "to_block_name": "productcatalog", "details": "gRPC call" },
-        { "to_block_name": "cart", "details": "gRPC call" },
-        { "to_block_name": "shipping", "details": "gRPC call" },
-        { "to_block_name": "currency", "details": "gRPC call" },
-        { "to_block_name": "checkout", "details": "gRPC call" }
+        { "to_block_name": "ad", "details": { "description": "gRPC call" } },
+        { "to_block_name": "recommendation", "details": { "description": "gRPC call" } },
+        { "to_block_name": "productcatalog", "details": { "description": "gRPC call" } },
+        { "to_block_name": "cart", "details": { "description": "gRPC call" } },
+        { "to_block_name": "shipping", "details": { "description": "gRPC call" } },
+        { "to_block_name": "currency", "details": { "description": "gRPC call" } },
+        { "to_block_name": "checkout", "details": { "description": "gRPC call" } }
       ]
     },
     {
@@ -42,12 +42,12 @@
         }
       },
       "downstream": [
-        { "to_block_name": "payment", "details": "gRPC call" },
-        { "to_block_name": "shipping", "details": "gRPC call" },
-        { "to_block_name": "email", "details": "gRPC call" },
-        { "to_block_name": "currency", "details": "gRPC call" },
-        { "to_block_name": "productcatalog", "details": "gRPC call" },
-        { "to_block_name": "cart", "details": "gRPC call" }
+        { "to_block_name": "payment", "details": { "description": "gRPC call" } },
+        { "to_block_name": "shipping", "details": { "description": "gRPC call" } },
+        { "to_block_name": "email", "details": { "description": "gRPC call" } },
+        { "to_block_name": "currency", "details": { "description": "gRPC call" } },
+        { "to_block_name": "productcatalog", "details": { "description": "gRPC call" } },
+        { "to_block_name": "cart", "details": { "description": "gRPC call" } }
       ]
     },
     {
@@ -62,7 +62,7 @@
         }
       },
       "downstream": [
-        { "to_block_name": "redis-cache", "details": "Redis protocol (cart storage)" }
+        { "to_block_name": "redis-cache", "details": { "description": "Redis protocol (cart storage)" } }
       ]
     },
     {
@@ -142,7 +142,7 @@
         }
       },
       "downstream": [
-        { "to_block_name": "productcatalog", "details": "gRPC call" }
+        { "to_block_name": "productcatalog", "details": { "description": "gRPC call" } }
       ]
     },
     {
@@ -170,7 +170,7 @@
         }
       },
       "downstream": [
-        { "to_block_name": "frontend", "details": "HTTP requests (traffic generation)" }
+        { "to_block_name": "frontend", "details": { "description": "HTTP requests (traffic generation)" } }
       ]
     },
     {
