@@ -28,23 +28,24 @@ var (
 	natsURL string = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
 )
 
-func deleteArchModel(dbc db.DBSyncClient, modelUUID string) error {
+func deleteArchModel(dbc db.DBSyncClient, modelUUID string) {
 	if uuids, err := dbc.Query.JPGQLCtraQuery(modelUUID, fmt.Sprintf(".*[l:type('%s')]", types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK)); err == nil {
 		for _, blockUUID := range uuids {
-			return dbc.CMDB.ObjectDelete(blockUUID)
+			if err := dbc.CMDB.ObjectDelete(blockUUID); err != nil {
+				lg.Logln(lg.ErrorLevel, "cannot block with uuid=%s: %v", blockUUID, err)
+			}
 		}
 	}
-	dbc.CMDB.ObjectDelete(modelUUID)
-	return nil
+	if err := dbc.CMDB.ObjectDelete(modelUUID); err != nil {
+		lg.Logln(lg.ErrorLevel, "cannot delete model with uuid=%s: %v", modelUUID, err)
+	}
 }
 
 func buildArchModel(dbc db.DBSyncClient, doc easyjson.JSON) error {
 	modelName := doc.GetByPath("name").AsStringDefault("unknown model")
 	modelUUID := system.GetHashStr(modelName)
 
-	if err := deleteArchModel(dbc, modelUUID); err != nil {
-		return err
-	}
+	deleteArchModel(dbc, modelUUID)
 
 	modelDetails := doc.GetByPath("details").Clone()
 	modelDetails.SetByPath("name", easyjson.NewJSON(modelName))
@@ -135,6 +136,10 @@ func buildArchModel(dbc db.DBSyncClient, doc easyjson.JSON) error {
 			if !ok || toName == "" {
 				return fmt.Errorf("invalid schema: blocks[%d].downstream[%d].to_block_name must be a non-empty string", i, j)
 			}
+			linkBody := edge.GetByPath("details")
+			if edge.GetByPath("details").IsNonEmptyObject() {
+				linkBody = edge.GetByPath("details")
+			}
 
 			toID := system.GetHashStr(toName)
 
@@ -144,7 +149,7 @@ func buildArchModel(dbc db.DBSyncClient, doc easyjson.JSON) error {
 				fromID,
 				toID,
 				nil,
-				easyjson.NewJSONObject(),
+				linkBody,
 				false,
 				toName, // As requested: pass downstream_block_name as the last parameter.
 			); err != nil {
@@ -186,8 +191,11 @@ func pushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProc
 }
 
 func adapterUpdateStatus(dbc db.DBSyncClient) {
+	t := time.Now()
+
 	data := easyjson.NewJSONObject()
-	data.SetByPath("updated_at", easyjson.NewJSON(time.Now().Local().Format("2006-01-02 15:04:05 MST")))
+	data.SetByPath("updated_at.datetime", easyjson.NewJSON(t.Format("2006-01-02 15:04:05 MST")))
+	data.SetByPath("updated_at.nano", easyjson.NewJSON(t.UnixNano()))
 
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_AD_ARCH_MODEL, data, false, types.TYPE_FOLIAGE_APP_ADAPTER))
 }
