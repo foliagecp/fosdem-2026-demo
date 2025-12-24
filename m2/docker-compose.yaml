@@ -18,28 +18,44 @@ services:
     depends_on:
       - nats
 
-  main:
-    image: demo/m2-main:latest
+  cmd:
+    image: foliage-demo/cmd:latest
+    restart: always
     command: /usr/bin/runtime -ll 6
     env_file: ./configs/.env
     depends_on:
       - nats
     build:
       context: ..
-      dockerfile: ./m2/cmd/Dockerfile
-    stop_grace_period: 300s
+      dockerfile: m2/cmd/Dockerfile
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://cmd:9000/health"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - ./cmd/data:/data
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
+    stop_grace_period: 1m
 
-#  cn-ad_m2_k8s:
-#    image: demo/m2-cn-ad:latest
-#    command: /usr/bin/foliage -ll 6
-#    env_file: ./configs/.env
-#    depends_on:
-#      - nats
-#    build:
-#      context: ../..
-#      dockerfile: tests/basic/Dockerfile
-#    volumes:
-#      - .:/foliage
+  cn-ad_m2_k8s:
+    image: foliage-demo/cn-ad-k8s:latest
+    restart: always
+    command: /usr/bin/foliage -ll 6
+    env_file: ./configs/.env
+    depends_on:
+      cmd:
+        condition: service_healthy
+    build:
+      context: ../..
+      dockerfile: m2/cn_ad/Dockerfile
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   nats-exporter:
     image: natsio/prometheus-nats-exporter:latest
