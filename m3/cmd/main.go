@@ -76,6 +76,21 @@ func healthyState(ctx context.Context) error {
 	}
 }
 
+func cmdUpdateStatus(runtime *statefun.Runtime) {
+	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
+	if err != nil {
+		lg.Logf(lg.ErrorLevel, "cannot update cmd status: %v", err)
+	}
+
+	t := time.Now()
+
+	data := easyjson.NewJSONObject()
+	data.SetByPath("updated_at.datetime", easyjson.NewJSON(t.Format("2006-01-02 15:04:05 MST")))
+	data.SetByPath("updated_at.nano", easyjson.NewJSON(t.UnixNano()))
+
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CMD, data, false, types.TYPE_FOLIAGE_APP_CMD))
+}
+
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
 	if err != nil {

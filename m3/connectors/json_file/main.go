@@ -102,8 +102,11 @@ func notifyAdapters(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor
 }
 
 func connectorUpdateStatus(dbc db.DBSyncClient) {
+	t := time.Now()
+
 	data := easyjson.NewJSONObject()
-	data.SetByPath("updated_at", easyjson.NewJSON(time.Now().Local().Format("2006-01-02 15:04:05 MST")))
+	data.SetByPath("updated_at.datetime", easyjson.NewJSON(t.Format("2006-01-02 15:04:05 MST")))
+	data.SetByPath("updated_at.nano", easyjson.NewJSON(t.UnixNano()))
 
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CN_JSON_FILE, data, false, types.TYPE_FOLIAGE_APP_CONNECTOR))
 }

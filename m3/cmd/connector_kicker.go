@@ -8,7 +8,7 @@ import (
 	"github.com/foliagecp/easyjson"
 	"github.com/foliagecp/fosdem-2026-demo/m3/common/apps"
 	statefun "github.com/foliagecp/sdk/statefun"
-	"github.com/foliagecp/sdk/statefun/logger"
+	lg "github.com/foliagecp/sdk/statefun/logger"
 	"github.com/foliagecp/sdk/statefun/plugins"
 	"github.com/foliagecp/sdk/statefun/system"
 )
@@ -34,6 +34,8 @@ func kickJsonFileConnector(ctx context.Context, runtime *statefun.Runtime) {
 	defer ticker.Stop()
 
 	for {
+		cmdUpdateStatus(runtime)
+
 		// Wait for either:
 		// 1) context cancellation/deadline, or
 		// 2) the next tick.
@@ -56,14 +58,14 @@ func kickJsonFileConnector(ctx context.Context, runtime *statefun.Runtime) {
 		// Read the file contents.
 		fileBytes, err := os.ReadFile(cn_json_file_filename)
 		if err != nil {
-			logger.Logf(logger.ErrorLevel, "%s file read error: %s", cn_json_file_filename, err.Error())
+			lg.Logf(lg.ErrorLevel, "%s file read error: %s", cn_json_file_filename, err.Error())
 			return
 		}
 
 		// Parse JSON from bytes.
 		j, ok := easyjson.JSONFromBytes(fileBytes)
 		if !ok {
-			logger.Logf(logger.ErrorLevel, "%s does not contain a json data", cn_json_file_filename)
+			lg.Logf(lg.ErrorLevel, "%s does not contain a json data", cn_json_file_filename)
 			return
 		}
 
