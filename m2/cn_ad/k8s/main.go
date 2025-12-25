@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	runtimeName = "k8s_api"
+	runtimeName = "k8s_cn_ad"
 )
 
 var (
@@ -41,17 +41,32 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 		return err
 	}
 
-	clusterID, err := getClusterIDFromK8s(k8sClient)
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.CONNECTOR_ADAPTER_TYPE, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.CLUSTER_TYPE, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.NODE_TYPE, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.POD_TYPE, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.DEPLOYMENT_TYPE, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.REPLICATION_SET_TYPE, easyjson.NewJSONObject(), false, true))
+
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CONNECTOR_ADAPTER_TYPE, m2.CLUSTER_TYPE, nil, easyjson.NewJSONObject(), false, m2.CLUSTER_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.NODE_TYPE, m2.NODE_TYPE, nil))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.POD_TYPE, m2.POD_TYPE, nil))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.DEPLOYMENT_TYPE, m2.DEPLOYMENT_TYPE, nil))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.REPLICATION_SET_TYPE, m2.REPLICATION_SET_TYPE, nil))
+
+	clusterName := GetClusterNameFromConfig(kubeconfigPath)
+	clusterID, err := GetClusterIDFromK8sClient(k8sClient)
 	if err != nil {
-		lg.GetLogger().Errorf(ctx, "get cluster id error: %v", err)
+		lg.GetLogger().Errorf(ctx, "get cluster id from k8s client error: %v", err)
 		return err
 	}
-
-	createSchema(&dbc)
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, easyjson.NewJSONObject(), true, m2.CONNECTOR_ADAPTER_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, easyjson.NewJSONObject(), true, m2.CLUSTER_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(clusterName, clusterID, nil, easyjson.NewJSONObject(), true, clusterName))
 
 	stopCh := make(chan struct{})
 
-	_, err = NewWatcher(runtime, k8sClient, stopCh, clusterID)
+	_, err = NewWatcher(runtime, k8sClient, clusterID, stopCh)
 	if err != nil {
 		lg.GetLogger().Errorf(ctx, "create k8s watcher error: %v", err)
 		return err
@@ -84,7 +99,7 @@ func registerFunctionTypes(runtime *statefun.Runtime) {
 
 func start() {
 	system.GlobalPrometrics = system.NewPrometrics("", ":9901")
-	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, runtimeName).SetHubDomainName(m2.DOMAIN_NAME)); err == nil {
+	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, runtimeName).UseJSDomainAsHubDomainName()); err == nil {
 		registerFunctionTypes(runtime)
 		runtime.RegisterOnAfterStartFunction(onAfterStart, false)
 		if err := runtime.Start(context.TODO(), cache.NewCacheConfig("cn_ad_cache")); err != nil {

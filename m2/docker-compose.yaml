@@ -41,42 +41,21 @@ services:
         max-file: "5"
     stop_grace_period: 1m
 
-  cn-ad_m2_k8s:
-    image: foliage-demo/cn-ad-k8s:latest
-    restart: always
-    command: /usr/bin/foliage -ll 6
-    env_file: ./configs/.env
-    depends_on:
-      cmd:
-        condition: service_healthy
-    build:
-      context: ../..
-      dockerfile: m2/cn_ad/Dockerfile
-    logging:
-      options:
-        max-size: "10m"
-        max-file: "5"
-
-  nats-exporter:
-    image: natsio/prometheus-nats-exporter:latest
-    depends_on:
-     - nats
-    ports:
-     - '7777:7777'
-    command: -varz -jsz=all http://nats:8222
-
-  prometheus:
-    image: prom/prometheus
-    ports:
-      - 9090:9090
-    volumes:
-      - ./configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-
-  grafana:
-    ports:
-     - '3000:3000'
-    image: grafana/grafana-enterprise
-    volumes:
-      - ./configs/grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/main.yaml
-      - ./configs/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/main.yaml
-      - ./configs/grafana/dashboards:/var/lib/grafana/dashboards
+#  cn-ad_m2_k8s:
+#    image: foliage-demo/cn-ad-k8s:latest
+#    restart: always
+#    command: /usr/bin/runtime -ll 6
+#    env_file: ./configs/.env
+#    depends_on:
+#      cmd:
+#        condition: service_healthy
+#    volumes:
+#      - ./configs/kubeconfig:/configs/kubeconfig
+#      - ./configs/pki:/configs/pki
+#    build:
+#      context: ..
+#      dockerfile: m2/cn_ad/k8s/Dockerfile
+#    logging:
+#      options:
+#        max-size: "10m"
+#        max-file: "5"

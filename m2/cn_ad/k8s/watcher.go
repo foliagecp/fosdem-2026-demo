@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/foliagecp/easyjson"
 	"github.com/foliagecp/fosdem-2026-demo/m2"
 	"github.com/foliagecp/sdk/clients/go/db"
@@ -19,15 +21,19 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-type EventType = string
-
 const (
 	ADD    EventType = "Add"
 	UPDATE EventType = "Update"
 	DELETE EventType = "Delete"
 )
 
-const k8sSystemNamespace = "kube-system"
+const (
+	k8sSystemNamespaceKubeSystem    = "kube-system"
+	k8sSystemNamespaceKubePublic    = "kube-public"
+	k8sSystemNamespaceKubeNodeLease = "kube-node-lease"
+)
+
+type EventType = string
 
 type Watcher struct {
 	runtime          *statefun.Runtime
@@ -53,7 +59,7 @@ func NewK8sClient(kubeconfigPath string) (*k8s.Clientset, error) {
 	return clientSet, nil
 }
 
-func NewWatcher(runtime *statefun.Runtime, k8sClient *k8s.Clientset, stopCh <-chan struct{}, clusterID string) (*Watcher, error) {
+func NewWatcher(runtime *statefun.Runtime, k8sClient *k8s.Clientset, clusterID string, stopCh <-chan struct{}) (*Watcher, error) {
 	factory := informers.NewSharedInformerFactory(k8sClient, 0)
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
@@ -90,59 +96,123 @@ func NewWatcher(runtime *statefun.Runtime, k8sClient *k8s.Clientset, stopCh <-ch
 }
 
 func (w *Watcher) sync(eventType EventType, obj interface{}) {
-	ctx := context.Background()
+	var (
+		typeName string
+		objectID string
+	)
+	m2Object := easyjson.NewJSONObject()
 
-	kubeObj, ok := obj.(metav1.Object)
-	if !ok {
-		lg.GetLogger().Errorf(ctx, "object is not a metav1.Object")
-		return
-	}
-
-	var typeName string
-
-	switch obj.(type) {
+	switch resource := obj.(type) {
 	case *corev1.Node:
-		typeName = m2.TAG_SOURCE_TYPE_NODE
+		objectID = string(resource.UID)
+
+		m2Object.SetByPath("UID", easyjson.NewJSON(objectID))
+		m2Object.SetByPath("name", easyjson.NewJSON(resource.Name))
+		m2Object.SetByPath("systemUID", easyjson.NewJSON(resource.Status.NodeInfo.SystemUUID))
+
+		typeName = m2.NODE_TYPE
+
 	case *corev1.Pod:
-		typeName = m2.TAG_SOURCE_TYPE_POD
+		objectID = string(resource.UID)
+
+		m2Object.SetByPath("UID", easyjson.NewJSON(objectID))
+		m2Object.SetByPath("name", easyjson.NewJSON(resource.Name))
+		m2Object.SetByPath("statusPhase", easyjson.NewJSON(string(resource.Status.Phase)))
+		m2Object.SetByPath("creationTimestamp", easyjson.NewJSON(resource.CreationTimestamp.String()))
+		m2Object.SetByPath("nodeName", easyjson.NewJSON(resource.Spec.NodeName))
+		m2Object.SetByPath("labelsApp", easyjson.NewJSON(resource.Labels["app"]))
+		if containers := resource.Spec.Containers; len(containers) > 0 {
+			m2Object.SetByPath("containersImage", easyjson.NewJSON(containers[0].Image))
+		}
+		if ownerReferences := resource.OwnerReferences; len(ownerReferences) > 0 {
+			m2Object.SetByPath("ownerKind", easyjson.NewJSON(ownerReferences[0].Kind))
+			m2Object.SetByPath("ownerUID", easyjson.NewJSON(string(ownerReferences[0].UID)))
+			m2Object.SetByPath("ownerName", easyjson.NewJSON(ownerReferences[0].Name))
+		}
+
+		typeName = m2.POD_TYPE
+
 	case *appsv1.Deployment:
-		typeName = m2.TAG_SOURCE_TYPE_DEPLOYMENT
+		objectID = string(resource.UID)
+
+		m2Object.SetByPath("UID", easyjson.NewJSON(objectID))
+		m2Object.SetByPath("name", easyjson.NewJSON(resource.Name))
+		if containers := resource.Spec.Template.Spec.Containers; len(containers) > 0 {
+			m2Object.SetByPath("containersImage", easyjson.NewJSON(containers[0].Image))
+		}
+		typeName = m2.DEPLOYMENT_TYPE
+
 	case *appsv1.ReplicaSet:
-		typeName = m2.TAG_SOURCE_TYPE_REPLICATION_SET
+		objectID = string(resource.UID)
+
+		m2Object.SetByPath("UID", easyjson.NewJSON(objectID))
+		m2Object.SetByPath("name", easyjson.NewJSON(resource.Name))
+		if ownerReferences := resource.OwnerReferences; len(ownerReferences) > 0 {
+			m2Object.SetByPath("ownerKind", easyjson.NewJSON(ownerReferences[0].Kind))
+			m2Object.SetByPath("ownerUID", easyjson.NewJSON(string(ownerReferences[0].UID)))
+			m2Object.SetByPath("ownerName", easyjson.NewJSON(ownerReferences[0].Name))
+		}
+
+		typeName = m2.REPLICATION_SET_TYPE
+
 	default:
-		lg.GetLogger().Warnf(ctx, "No metadata mapping for type: %T", obj)
+		lg.GetLogger().Warnf(context.TODO(), "No metadata mapping for type: %T", obj)
 		return
 	}
 
-	w.processResource(ctx, eventType, kubeObj, obj, typeName)
+	w.processResource(eventType, objectID, m2Object, typeName)
 }
 
-func (w *Watcher) processResource(ctx context.Context, eventType EventType, kubeObj metav1.Object, rawObj interface{}, typeName string) {
-	objID := string(kubeObj.GetUID())
-
-	displayName := kubeObj.GetName()
-	if ns := kubeObj.GetNamespace(); ns != "" {
-		displayName = ns + "/" + displayName
-	}
-
+func (w *Watcher) processResource(eventType EventType, objID string, body easyjson.JSON, typeName string) {
 	switch eventType {
 	case DELETE:
 		system.MsgOnErrorReturn(w.dbc.ObjectDelete(objID))
+		//TODO kick adapter
 	case ADD, UPDATE:
-		body := easyjson.NewJSON(rawObj)
-		if err := w.dbc.ObjectUpdate(objID, body, true, m2.K8S_INFORMER_TYPE); err != nil {
+		if err := w.dbc.ObjectUpdate(objID, body, true, typeName); err != nil {
 			system.MsgOnErrorReturn(err)
 			return
 		}
-		system.MsgOnErrorReturn(w.dbc.ObjectsLinkUpdate(runtimeName, objID, []string{typeName}, easyjson.NewJSONObject(), true, objID))
+		system.MsgOnErrorReturn(w.dbc.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), true, objID))
+		//TODO kick adapter
 	}
 }
 
-func getClusterIDFromK8s(k8sClient *k8s.Clientset) (string, error) {
+func GetClusterIDFromK8sClient(k8sClient *k8s.Clientset) (string, error) {
 	ctx := context.Background()
-	ns, err := k8sClient.CoreV1().Namespaces().Get(ctx, k8sSystemNamespace, metav1.GetOptions{})
+	ns, err := k8sClient.CoreV1().Namespaces().Get(ctx, k8sSystemNamespaceKubeSystem, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 	return string(ns.UID), nil
+}
+
+func GetNamespaceFromConfig(kubeconfigPath string) (string, error) {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.ExplicitPath = kubeconfigPath
+
+	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, &clientcmd.ConfigOverrides{})
+
+	ns, _, err := clientConfig.Namespace()
+	if err != nil {
+		return "", fmt.Errorf("GetNamespaceFromConfig: %v", err)
+	}
+	return ns, nil
+}
+
+func GetClusterNameFromConfig(kubeconfigPath string) string {
+	const defaultClusterName = "default_cluster_name"
+	config, err := clientcmd.LoadFromFile(kubeconfigPath)
+	if err != nil {
+		lg.GetLogger().Errorf(context.TODO(), "GetClusterNameFromConfig: %v", err)
+		return defaultClusterName
+	}
+
+	contextObj, ok := config.Contexts[config.CurrentContext]
+	if !ok {
+		lg.GetLogger().Errorf(context.TODO(), "GetClusterNameFromConfig: context not found")
+		return defaultClusterName
+	}
+
+	return contextObj.Cluster
 }
