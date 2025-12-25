@@ -43,7 +43,7 @@ func deleteArchModel(dbc db.DBSyncClient, modelUUID string) {
 
 func buildArchModel(dbc db.DBSyncClient, doc easyjson.JSON) error {
 	modelName := doc.GetByPath("name").AsStringDefault("unknown model")
-	modelUUID := system.GetHashStr(modelName)
+	modelUUID := system.GetHashStr(modelName + types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL)
 
 	deleteArchModel(dbc, modelUUID)
 
@@ -84,7 +84,7 @@ func buildArchModel(dbc db.DBSyncClient, doc easyjson.JSON) error {
 		}
 
 		// Use a stable ID derived from block name.
-		id := system.GetHashStr(name)
+		id := system.GetHashStr(name + types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK)
 
 		// Store details as-is (it is already easyjson.JSON).
 		if err := dbc.CMDB.ObjectUpdate(
