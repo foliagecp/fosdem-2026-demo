@@ -49,10 +49,10 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.REPLICATION_SET_TYPE, easyjson.NewJSONObject(), false, true))
 
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CONNECTOR_ADAPTER_TYPE, m2.CLUSTER_TYPE, nil, easyjson.NewJSONObject(), false, m2.CLUSTER_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.NODE_TYPE, m2.NODE_TYPE, nil))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.POD_TYPE, m2.POD_TYPE, nil))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.DEPLOYMENT_TYPE, m2.DEPLOYMENT_TYPE, nil))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.REPLICATION_SET_TYPE, m2.REPLICATION_SET_TYPE, nil))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.NODE_TYPE, nil, easyjson.NewJSONObject(), false, m2.NODE_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.DEPLOYMENT_TYPE, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
 
 	clusterName := GetClusterNameFromConfig(kubeconfigPath)
 	clusterID, err := GetClusterIDFromK8sClient(k8sClient)
@@ -60,9 +60,15 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 		lg.GetLogger().Errorf(ctx, "get cluster id from k8s client error: %v", err)
 		return err
 	}
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, easyjson.NewJSONObject(), true, m2.CONNECTOR_ADAPTER_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, easyjson.NewJSONObject(), true, m2.CLUSTER_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(clusterName, clusterID, nil, easyjson.NewJSONObject(), true, clusterName))
+
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(runtimeName, easyjson.NewJSONObject(), true, m2.CONNECTOR_ADAPTER_TYPE))
+
+	clusterBody := easyjson.NewJSONObject()
+	clusterBody.SetByPath("cluster_name", easyjson.NewJSON(clusterName))
+	clusterBody.SetByPath("cluster_id", easyjson.NewJSON(clusterID))
+
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, clusterBody, true, m2.CLUSTER_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(runtimeName, clusterID, nil, easyjson.NewJSONObject(), true, clusterID))
 
 	stopCh := make(chan struct{})
 
@@ -89,12 +95,30 @@ func status(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcesso
 	om.AggregateOpMsg(sfMediators.OpMsgOk(data)).Reply()
 }
 
+func notifyAdapters(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor) {
+	getPushUpdateFunction := func(adapterUUID string) (string, bool) {
+		if data, err := dbc.CMDB.ObjectRead(adapterUUID); err == nil {
+			return data.GetByPath("body.push_update_function").AsString()
+		}
+		return "", false
+	}
+	for _, dm := range ctx.Domain.GetWeakClusterDomains() {
+		if uuids, err := dbc.Query.JPGQLCtraQuery(ctx.Domain.CreateObjectIDWithDomain(dm, m2.TYPE_FOLIAGE_APP_ADAPTER, true), ".*[l:type('__object')]"); err == nil {
+			for _, uuid := range uuids {
+				if typename, ok := getPushUpdateFunction(uuid); ok {
+					system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, typename, uuid, nil, nil))
+				}
+			}
+		}
+	}
+}
+
 func registerFunctionTypes(runtime *statefun.Runtime) {
 	//statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.inspect", inspect, *statefun.NewFunctionTypeConfig())
 	//statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.add", inspect, *statefun.NewFunctionTypeConfig())
 	//statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.update", inspect, *statefun.NewFunctionTypeConfig())
 	//statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.delete", inspect, *statefun.NewFunctionTypeConfig())
-	statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.status", status, *statefun.NewFunctionTypeConfig().SetAllowedRequestProviders(sfPlugins.AutoRequestSelect))
+	//statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.status", status, *statefun.NewFunctionTypeConfig().SetAllowedRequestProviders(sfPlugins.AutoRequestSelect))
 }
 
 func start() {
