@@ -133,6 +133,19 @@ func buildLinks(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProc
 				}
 			}
 		}
+		for replicasetID, replicaSet := range replicasets {
+			if replicaSet.ReqError == nil {
+				ownerUID, ok := replicaSet.ReqReply.GetByPath("data.body.ownerUID").AsString()
+				if ok {
+					for deploymentID := range deployments {
+						if ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false) == deploymentID {
+							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(replicasetID, deploymentID, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
+							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(deploymentID, replicasetID, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
+						}
+					}
+				}
+			}
+		}
 	}
 }
 

@@ -146,9 +146,13 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 			m2Object.SetByPath("containersImage", easyjson.NewJSON(containers[0].Image))
 		}
 		if ownerReferences := resource.OwnerReferences; len(ownerReferences) > 0 {
-			m2Object.SetByPath("ownerKind", easyjson.NewJSON(ownerReferences[0].Kind))
-			m2Object.SetByPath("ownerUID", easyjson.NewJSON(string(ownerReferences[0].UID)))
-			m2Object.SetByPath("ownerName", easyjson.NewJSON(ownerReferences[0].Name))
+			for _, ownerReference := range ownerReferences {
+				if ownerReference.Controller != nil && *ownerReference.Controller {
+					m2Object.SetByPath("ownerKind", easyjson.NewJSON(ownerReferences[0].Kind))
+					m2Object.SetByPath("ownerUID", easyjson.NewJSON(string(ownerReferences[0].UID)))
+					m2Object.SetByPath("ownerName", easyjson.NewJSON(ownerReferences[0].Name))
+				}
+			}
 		}
 
 		typeName = m2.POD_TYPE
@@ -169,9 +173,13 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 		m2Object.SetByPath("UID", easyjson.NewJSON(objectID))
 		m2Object.SetByPath("name", easyjson.NewJSON(resource.Name))
 		if ownerReferences := resource.OwnerReferences; len(ownerReferences) > 0 {
-			m2Object.SetByPath("ownerKind", easyjson.NewJSON(ownerReferences[0].Kind))
-			m2Object.SetByPath("ownerUID", easyjson.NewJSON(string(ownerReferences[0].UID)))
-			m2Object.SetByPath("ownerName", easyjson.NewJSON(ownerReferences[0].Name))
+			for _, ownerReference := range ownerReferences {
+				if ownerReference.Controller != nil && *ownerReference.Controller {
+					m2Object.SetByPath("ownerKind", easyjson.NewJSON(ownerReferences[0].Kind))
+					m2Object.SetByPath("ownerUID", easyjson.NewJSON(string(ownerReferences[0].UID)))
+					m2Object.SetByPath("ownerName", easyjson.NewJSON(ownerReferences[0].Name))
+				}
+			}
 		}
 
 		typeName = m2.REPLICATION_SET_TYPE
