@@ -54,11 +54,19 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.DEPLOYMENT_TYPE, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
 
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.NODE_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.POD_TYPE, m2.NODE_TYPE, nil, easyjson.NewJSONObject(), false, m2.NODE_TYPE))
+
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.DEPLOYMENT_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.POD_TYPE, m2.DEPLOYMENT_TYPE, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
+
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.REPLICATION_SET_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.POD_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
+
 	clusterName := GetClusterNameFromConfig(kubeconfigPath)
 	clusterID, err := GetClusterIDFromK8sClient(k8sClient)
 	if err != nil {
 		lg.GetLogger().Errorf(ctx, "get cluster id from k8s client error: %v", err)
-		return err
 	}
 
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(runtimeName, easyjson.NewJSONObject(), true, m2.CONNECTOR_ADAPTER_TYPE))
@@ -86,13 +94,21 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	return nil
 }
 
-func status(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+func updateLinks(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	om := sfMediators.NewOpMediator(ctx)
 
-	data := easyjson.NewJSONObjectWithKeyValue("running", easyjson.NewJSON(running.Load() > 0))
-	data.SetByPath("last_run_finish_time", easyjson.NewJSON(lastUpdateTime.Load()))
+	resourceType := ctx.Payload.GetByPath("type").AsStringDefault("")
+	switch resourceType {
+	case m2.CLUSTER_TYPE:
+	case m2.NODE_TYPE:
+	case m2.POD_TYPE:
+	case m2.REPLICATION_SET_TYPE:
+	case m2.DEPLOYMENT_TYPE:
 
-	om.AggregateOpMsg(sfMediators.OpMsgOk(data)).Reply()
+	default:
+	}
+
+	om.AggregateOpMsg(sfMediators.OpMsgOk(easyjson.NewJSONObject())).Reply()
 }
 
 func notifyAdapters(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor) {
@@ -114,11 +130,18 @@ func notifyAdapters(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor
 }
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
-	//statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.inspect", inspect, *statefun.NewFunctionTypeConfig())
-	//statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.add", inspect, *statefun.NewFunctionTypeConfig())
-	//statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.update", inspect, *statefun.NewFunctionTypeConfig())
-	//statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.delete", inspect, *statefun.NewFunctionTypeConfig())
-	//statefun.NewFunctionType(runtime, "functions.connectors.k8s_api.status", status, *statefun.NewFunctionTypeConfig().SetAllowedRequestProviders(sfPlugins.AutoRequestSelect))
+	statefun.NewFunctionType(
+		runtime,
+		"functions.cn_ad.k8s.build",
+		buildLinks,
+		*statefun.NewFunctionTypeConfig().SetAllowedSignalProviders(sfPlugins.AutoSignalSelect),
+	)
+	statefun.NewFunctionType(
+		runtime,
+		"functions.cn_ad.k8s.status",
+		status,
+		*statefun.NewFunctionTypeConfig().SetAllowedRequestProviders(sfPlugins.AutoRequestSelect),
+	)
 }
 
 func start() {

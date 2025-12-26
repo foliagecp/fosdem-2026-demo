@@ -41,21 +41,20 @@ services:
         max-file: "5"
     stop_grace_period: 1m
 
-#  cn-ad_m2_k8s:
-#    image: foliage-demo/cn-ad-k8s:latest
-#    restart: always
-#    command: /usr/bin/runtime -ll 6
-#    env_file: ./configs/.env
-#    depends_on:
-#      cmd:
-#        condition: service_healthy
-#    volumes:
-#      - ./configs/kubeconfig:/configs/kubeconfig
-#      - ./configs/pki:/configs/pki
-#    build:
-#      context: ..
-#      dockerfile: m2/cn_ad/k8s/Dockerfile
-#    logging:
-#      options:
-#        max-size: "10m"
-#        max-file: "5"
+  cn-ad_m2_k8s:
+    image: foliage-demo/cn-ad-k8s:latest
+    restart: always
+    command: /usr/bin/runtime -ll 6
+    env_file: ./configs/.env
+    depends_on:
+      cmd:
+        condition: service_healthy
+    volumes:
+      - ./configs/kubeconfig:/configs/kubeconfig
+    build:
+      context: ..
+      dockerfile: m2/cn_ad/k8s/Dockerfile
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"

@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/foliagecp/easyjson"
 	"github.com/foliagecp/fosdem-2026-demo/m2"
 	"github.com/foliagecp/sdk/clients/go/db"
 	"github.com/foliagecp/sdk/statefun"
 	lg "github.com/foliagecp/sdk/statefun/logger"
+	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
 	"github.com/foliagecp/sdk/statefun/system"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
@@ -33,6 +36,16 @@ const (
 	k8sSystemNamespaceKubeNodeLease = "kube-node-lease"
 )
 
+const (
+	deploymentKind  = "Deployment"
+	replicaSetKind  = "ReplicaSet"
+	nodeKind        = "Node"
+	statefulSetKind = "StatefulSet"
+	daemonSetKind   = "DaemonSet"
+	jobKind         = "Job"
+	cronJobKind     = "CronJob"
+)
+
 type EventType = string
 
 type Watcher struct {
@@ -43,6 +56,11 @@ type Watcher struct {
 	podLister        core.PodLister
 	deploymentLister apps.DeploymentLister
 	replicaSetLister apps.ReplicaSetLister
+
+	// rebuild
+	rebuildMu         sync.Mutex
+	delayRebuildTimer *time.Timer
+	rebuildPending    bool
 }
 
 func NewK8sClient(kubeconfigPath string) (*k8s.Clientset, error) {
@@ -68,13 +86,16 @@ func NewWatcher(runtime *statefun.Runtime, k8sClient *k8s.Clientset, clusterID s
 	}
 
 	w := &Watcher{
-		runtime:          runtime,
-		dbc:              &dbc.CMDB,
-		clusterID:        clusterID,
-		nodeLister:       factory.Core().V1().Nodes().Lister(),
-		podLister:        factory.Core().V1().Pods().Lister(),
-		deploymentLister: factory.Apps().V1().Deployments().Lister(),
-		replicaSetLister: factory.Apps().V1().ReplicaSets().Lister(),
+		runtime:           runtime,
+		dbc:               &dbc.CMDB,
+		clusterID:         clusterID,
+		nodeLister:        factory.Core().V1().Nodes().Lister(),
+		podLister:         factory.Core().V1().Pods().Lister(),
+		deploymentLister:  factory.Apps().V1().Deployments().Lister(),
+		replicaSetLister:  factory.Apps().V1().ReplicaSets().Lister(),
+		rebuildMu:         sync.Mutex{},
+		delayRebuildTimer: nil,
+		rebuildPending:    false,
 	}
 
 	genericHandler := cache.ResourceEventHandlerFuncs{
@@ -167,15 +188,50 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 	switch eventType {
 	case DELETE:
 		system.MsgOnErrorReturn(w.dbc.ObjectDelete(objID))
-		//TODO kick adapter
 	case ADD, UPDATE:
-		if err := w.dbc.ObjectUpdate(objID, body, true, typeName); err != nil {
+		if err := w.dbc.ObjectUpdate(objID, body, false, typeName); err != nil {
 			system.MsgOnErrorReturn(err)
 			return
 		}
-		system.MsgOnErrorReturn(w.dbc.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), true, objID))
-		//TODO kick adapter
+		system.MsgOnErrorReturn(w.dbc.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
 	}
+	w.markDirty()
+}
+
+func (w *Watcher) markDirty() {
+	w.rebuildMu.Lock()
+	defer w.rebuildMu.Unlock()
+
+	w.rebuildPending = true
+
+	if w.delayRebuildTimer != nil {
+		w.delayRebuildTimer.Reset(300 * time.Millisecond)
+		return
+	}
+
+	w.delayRebuildTimer = time.AfterFunc(300*time.Millisecond, w.rebuild)
+}
+
+func (w *Watcher) rebuild() {
+	w.rebuildMu.Lock()
+	if !w.rebuildPending {
+		w.rebuildMu.Unlock()
+		return
+	}
+
+	w.rebuildPending = false
+	w.delayRebuildTimer = nil
+	w.rebuildMu.Unlock()
+
+	system.MsgOnErrorReturn(
+		w.runtime.Signal(
+			sfPlugins.AutoSignalSelect,
+			"functions.cn_ad.k8s.build",
+			w.clusterID,
+			nil,
+			nil,
+		),
+	)
 }
 
 func GetClusterIDFromK8sClient(k8sClient *k8s.Clientset) (string, error) {
