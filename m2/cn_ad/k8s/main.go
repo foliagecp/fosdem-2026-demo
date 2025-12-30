@@ -23,9 +23,9 @@ const (
 
 var (
 	natsURL        = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
-	kubeconfigPath = system.GetEnvMustProceed("KUBECONFIG_PATH", "m2/configs/kubeconfig")
-	dumpMode       = system.GetEnvMustProceed("DUMP_MODE", false)
-	dumpFile       = system.GetEnvMustProceed("DUMP_FILE", "m2/dumps/kube_dump.yaml")
+	kubeconfigPath = system.GetEnvMustProceed("KUBECONFIG_PATH", "/configs/kubeconfig")
+	dumpMode       = system.GetEnvMustProceed("DUMP_MODE", true)
+	dumpFile       = system.GetEnvMustProceed("DUMP_FILE", "/dumps/kube_dump.yaml")
 )
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
@@ -59,6 +59,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 		clusterID, err = GetClusterIDFromK8sClient(k8sClient)
 		if err != nil {
 			lg.GetLogger().Errorf(ctx, "get cluster id from k8s client error: %v", err)
+			return err
 		}
 	}
 
