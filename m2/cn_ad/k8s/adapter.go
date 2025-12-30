@@ -149,22 +149,6 @@ func buildLinks(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProc
 	}
 }
 
-func kickAdapters(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
-	for _, dm := range ctx.Domain.GetWeakClusterDomains() {
-		if dm != ctx.Domain.Name() {
-			system.MsgOnErrorReturn(
-				ctx.Signal(
-					sfPlugins.AutoSignalSelect,
-					"notify_adapters", //TODO universal func for every domain?
-					ctx.Self.ID,
-					ctx.Payload,
-					nil,
-				),
-			)
-		}
-	}
-}
-
 func status(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	om := sfMediators.NewOpMediator(ctx)
 	data := easyjson.NewJSONObjectWithKeyValue("status", easyjson.NewJSON("ok"))

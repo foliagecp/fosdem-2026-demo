@@ -7,6 +7,7 @@ import (
 
 	"github.com/foliagecp/easyjson"
 	"github.com/foliagecp/fosdem-2026-demo/m2"
+	"github.com/foliagecp/fosdem-2026-demo/m3/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	"github.com/foliagecp/sdk/statefun"
 	lg "github.com/foliagecp/sdk/statefun/logger"
@@ -50,7 +51,7 @@ type EventType = string
 
 type Watcher struct {
 	runtime          *statefun.Runtime
-	dbc              *db.CMDBSyncClient
+	dbc              *db.DBSyncClient
 	clusterID        string
 	nodeLister       core.NodeLister
 	podLister        core.PodLister
@@ -77,7 +78,7 @@ func NewK8sClient(kubeconfigPath string) (*k8s.Clientset, error) {
 	return clientSet, nil
 }
 
-func NewWatcher(runtime *statefun.Runtime, k8sClient *k8s.Clientset, clusterID string, stopCh <-chan struct{}) (*Watcher, error) {
+func NewWatcher(runtime *statefun.Runtime, k8sClient k8s.Interface, clusterID string, stopCh <-chan struct{}) (*Watcher, error) {
 	factory := informers.NewSharedInformerFactory(k8sClient, 0)
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
@@ -87,7 +88,7 @@ func NewWatcher(runtime *statefun.Runtime, k8sClient *k8s.Clientset, clusterID s
 
 	w := &Watcher{
 		runtime:           runtime,
-		dbc:               &dbc.CMDB,
+		dbc:               &dbc,
 		clusterID:         clusterID,
 		nodeLister:        factory.Core().V1().Nodes().Lister(),
 		podLister:         factory.Core().V1().Pods().Lister(),
@@ -195,14 +196,31 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 func (w *Watcher) processResource(eventType EventType, objID string, body easyjson.JSON, typeName string) {
 	switch eventType {
 	case DELETE:
-		system.MsgOnErrorReturn(w.dbc.ObjectDelete(objID))
-	case ADD, UPDATE:
-		if err := w.dbc.ObjectUpdate(objID, body, false, typeName); err != nil {
+		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectDelete(objID))
+		if typeName == m2.POD_TYPE || typeName == m2.DEPLOYMENT_TYPE {
+			body.SetByPath("type", easyjson.NewJSON(typeName))
+			body.SetByPath("operation", easyjson.NewJSON("delete"))
+			w.notifyAdapters(&body)
+		}
+	case ADD:
+		if err := w.dbc.CMDB.ObjectCreate(objID, typeName, body); err != nil {
 			system.MsgOnErrorReturn(err)
 			return
 		}
-		system.MsgOnErrorReturn(w.dbc.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
+		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
+		if typeName == m2.POD_TYPE || typeName == m2.DEPLOYMENT_TYPE {
+			body.SetByPath("type", easyjson.NewJSON(typeName))
+			body.SetByPath("operation", easyjson.NewJSON("add"))
+			w.notifyAdapters(&body)
+		}
+	case UPDATE:
+		if err := w.dbc.CMDB.ObjectUpdate(objID, body, false, typeName); err != nil {
+			system.MsgOnErrorReturn(err)
+			return
+		}
+		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
 	}
+
 	w.markDirty()
 }
 
@@ -242,7 +260,25 @@ func (w *Watcher) rebuild() {
 	)
 }
 
-func GetClusterIDFromK8sClient(k8sClient *k8s.Clientset) (string, error) {
+func (w *Watcher) notifyAdapters(body *easyjson.JSON) {
+	getPushUpdateFunction := func(adapterUUID string) (string, bool) {
+		if data, err := w.dbc.CMDB.ObjectRead(adapterUUID); err == nil {
+			return data.GetByPath("body.push_update_function").AsString()
+		}
+		return "", false
+	}
+	for _, dm := range w.runtime.Domain.GetWeakClusterDomains() {
+		if uuids, err := w.dbc.Query.JPGQLCtraQuery(w.runtime.Domain.CreateObjectIDWithDomain(dm, types.TYPE_FOLIAGE_APP_ADAPTER, true), ".*[l:type('__object')]"); err == nil {
+			for _, uuid := range uuids {
+				if typename, ok := getPushUpdateFunction(uuid); ok {
+					system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, typename, uuid, body, nil))
+				}
+			}
+		}
+	}
+}
+
+func GetClusterIDFromK8sClient(k8sClient k8s.Interface) (string, error) {
 	ctx := context.Background()
 	ns, err := k8sClient.CoreV1().Namespaces().Get(ctx, k8sSystemNamespaceKubeSystem, metav1.GetOptions{})
 	if err != nil {

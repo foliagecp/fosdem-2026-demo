@@ -50,7 +50,8 @@ services:
       cmd:
         condition: service_healthy
     volumes:
-      - ./configs/kubeconfig:/configs/kubeconfig
+      - ./configs/:/configs/
+      - ./dumps/:/dumps/
     build:
       context: ..
       dockerfile: m2/cn_ad/k8s/Dockerfile

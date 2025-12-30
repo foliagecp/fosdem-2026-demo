@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sync/atomic"
 
 	"github.com/foliagecp/easyjson"
 	"github.com/foliagecp/fosdem-2026-demo/m2"
@@ -13,9 +12,9 @@ import (
 	"github.com/foliagecp/sdk/statefun"
 	"github.com/foliagecp/sdk/statefun/cache"
 	lg "github.com/foliagecp/sdk/statefun/logger"
-	sfMediators "github.com/foliagecp/sdk/statefun/mediator"
 	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
 	"github.com/foliagecp/sdk/statefun/system"
+	k8s "k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -25,8 +24,8 @@ const (
 var (
 	natsURL        = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
 	kubeconfigPath = system.GetEnvMustProceed("KUBECONFIG_PATH", "m2/configs/kubeconfig")
-	lastUpdateTime atomic.Int64
-	running        atomic.Int32
+	dumpMode       = system.GetEnvMustProceed("DUMP_MODE", false)
+	dumpFile       = system.GetEnvMustProceed("DUMP_FILE", "m2/dumps/kube_dump.yaml")
 )
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
@@ -35,10 +34,32 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 		return err
 	}
 
-	k8sClient, err := NewK8sClient(kubeconfigPath)
-	if err != nil {
-		lg.GetLogger().Errorf(ctx, "create k8s client error: %v", err)
-		return err
+	var (
+		k8sClient   k8s.Interface
+		clusterID   string
+		clusterName string
+	)
+
+	if dumpMode {
+		lg.GetLogger().Infof(ctx, "dump mode, dump file: %s", dumpFile)
+		k8sClient, err = NewFakeK8sClientFromDump(dumpFile)
+		if err != nil {
+			lg.GetLogger().Errorf(ctx, "create k8s client from dump error: %v", err)
+			return err
+		}
+		clusterID = "fake_k8s_cluster_id"
+		clusterName = "fake_k8s_cluster_name"
+	} else {
+		k8sClient, err = NewK8sClient(kubeconfigPath)
+		if err != nil {
+			lg.GetLogger().Errorf(ctx, "create k8s client error: %v", err)
+			return err
+		}
+		clusterName = GetClusterNameFromConfig(kubeconfigPath)
+		clusterID, err = GetClusterIDFromK8sClient(k8sClient)
+		if err != nil {
+			lg.GetLogger().Errorf(ctx, "get cluster id from k8s client error: %v", err)
+		}
 	}
 
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.CONNECTOR_ADAPTER_TYPE, easyjson.NewJSONObject(), false, true))
@@ -66,12 +87,6 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.REPLICATION_SET_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.POD_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
 
-	clusterName := GetClusterNameFromConfig(kubeconfigPath)
-	clusterID, err := GetClusterIDFromK8sClient(k8sClient)
-	if err != nil {
-		lg.GetLogger().Errorf(ctx, "get cluster id from k8s client error: %v", err)
-	}
-
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(runtimeName, easyjson.NewJSONObject(), true, m2.CONNECTOR_ADAPTER_TYPE))
 
 	clusterBody := easyjson.NewJSONObject()
@@ -95,41 +110,6 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	}()
 
 	return nil
-}
-
-func updateLinks(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
-	om := sfMediators.NewOpMediator(ctx)
-
-	resourceType := ctx.Payload.GetByPath("type").AsStringDefault("")
-	switch resourceType {
-	case m2.CLUSTER_TYPE:
-	case m2.NODE_TYPE:
-	case m2.POD_TYPE:
-	case m2.REPLICATION_SET_TYPE:
-	case m2.DEPLOYMENT_TYPE:
-
-	default:
-	}
-
-	om.AggregateOpMsg(sfMediators.OpMsgOk(easyjson.NewJSONObject())).Reply()
-}
-
-func notifyAdapters(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor) {
-	getPushUpdateFunction := func(adapterUUID string) (string, bool) {
-		if data, err := dbc.CMDB.ObjectRead(adapterUUID); err == nil {
-			return data.GetByPath("body.push_update_function").AsString()
-		}
-		return "", false
-	}
-	for _, dm := range ctx.Domain.GetWeakClusterDomains() {
-		if uuids, err := dbc.Query.JPGQLCtraQuery(ctx.Domain.CreateObjectIDWithDomain(dm, m2.TYPE_FOLIAGE_APP_ADAPTER, true), ".*[l:type('__object')]"); err == nil {
-			for _, uuid := range uuids {
-				if typename, ok := getPushUpdateFunction(uuid); ok {
-					system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, typename, uuid, nil, nil))
-				}
-			}
-		}
-	}
 }
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
