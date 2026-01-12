@@ -25,7 +25,7 @@ const (
 //	{
 //	  "target": {"ip": "192.168.157.12", "port": 22},
 //	  "auth": {"user": "demo", "password": "demo"},
-//	  "exec": {"path": "/opt/scripts/fix_kvm_libvirtd.sh", "args": []},
+//	  "exec": {"path": "/opt/scripts/fix_lsmod.sh", "args": []},
 //	  "result": {"uuid": "optional-fixed-uuid"}
 //	}
 func sshRun(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {

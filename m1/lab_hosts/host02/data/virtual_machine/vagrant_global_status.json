@@ -1,0 +1,10 @@
+{
+  "vms": [
+    {
+      "id": "i9j0k1l2",
+      "name": "vm_sockshop_frontend",
+      "state": "running",
+      "ip": "192.168.200.21"
+    }
+  ]
+}

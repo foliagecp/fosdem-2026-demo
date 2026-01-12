@@ -21,33 +21,32 @@ func connectorUpdateStatus(dbc db.DBSyncClient) {
 	_ = dbc.CMDB.ObjectUpdate(apps.APP_CN_SERVER, data, false, types.TYPE_FOLIAGE_APP_CONNECTOR)
 }
 
-func notifyAdapters(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor, hostID, command, sourceUUID string) {
+// notifyAdapters emits a signal to all adapter apps found in weak cluster domains.
+// The signal payload contains routing info for infra adapter.
+func notifyAdapters(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor, hostID, command, sourceUUID, sourceType string) {
 	for _, dm := range ctx.Domain.GetWeakClusterDomains() {
-		if uuids, err := dbc.Query.JPGQLCtraQuery(ctx.Domain.CreateObjectIDWithDomain(dm, types.TYPE_FOLIAGE_APP_ADAPTER, true), ".*[l:type('__object')]"); err == nil {
+		uuids, err := dbc.Query.JPGQLCtraQuery(ctx.Domain.CreateObjectIDWithDomain(dm, types.TYPE_FOLIAGE_APP_ADAPTER, true), ".*[l:type('__object')]")
+		if err != nil {
+			lg.Logf(lg.ErrorLevel, "cannot query adapters at domain %s: %v", dm, err)
+			continue
+		}
+
+		payload := easyjson.NewJSONObject()
+		payload.SetByPath("host_id", easyjson.NewJSON(hostID))
+		payload.SetByPath("command", easyjson.NewJSON(command))
+		payload.SetByPath("source_uuid", easyjson.NewJSON(sourceUUID))
+		payload.SetByPath("source_type", easyjson.NewJSON(sourceType))
+
+		for _, uuid := range uuids {
+			adapter, err := dbc.CMDB.ObjectRead(uuid)
 			if err != nil {
-				lg.Logf(lg.ErrorLevel, "cannot query adapters at domain %s: %v", dm, err)
 				continue
 			}
-
-			payload := easyjson.NewJSONObject()
-			payload.SetByPath("host_id", easyjson.NewJSON(hostID))
-			payload.SetByPath("command", easyjson.NewJSON(command))
-			payload.SetByPath("source_uuid", easyjson.NewJSON(sourceUUID))
-			payload.SetByPath("source_type", easyjson.NewJSON(types.TYPE_FOLIAGE_CONNECTOR_HOSTNAME))
-
-			for _, uuid := range uuids {
-				adapter, err := dbc.CMDB.ObjectRead(uuid)
-				if err != nil {
-					continue
-				}
-
-				fn, ok := adapter.GetByPath("body.push_update_function").AsString()
-				if !ok || fn == "" {
-					continue
-				}
-
-				ctx.Signal(sfPlugins.AutoSignalSelect, fn, uuid, &payload, nil)
+			fn, ok := adapter.GetByPath("body.push_update_function").AsString()
+			if !ok || fn == "" {
+				continue
 			}
+			ctx.Signal(sfPlugins.AutoSignalSelect, fn, uuid, &payload, nil)
 		}
 	}
 }

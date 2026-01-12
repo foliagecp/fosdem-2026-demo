@@ -21,7 +21,8 @@ var (
 )
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
-	statefun.NewFunctionType(runtime, kvmVirshListAllPushUpdateFnName, kvmVirshListAllPushUpdate, *statefun.NewFunctionTypeConfig())
+	statefun.NewFunctionType(runtime, vagrantGlobalStatusPushUpdateFnName, vagrantGlobalStatusPushUpdate, *statefun.NewFunctionTypeConfig())
+	statefun.NewFunctionType(runtime, lshwPushUpdateFnName, lshwPushUpdate, *statefun.NewFunctionTypeConfig())
 }
 
 func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
@@ -30,10 +31,13 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 		return err
 	}
 
+	// App connector root.
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_CONNECTOR, easyjson.NewJSONObject(), false, true))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CN_VIRTUAL_MACHINE, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_APP_CONNECTOR))
 
-	mustTypeInit(dbc, types.TYPE_FOLIAGE_CONNECTOR_KVM_VIRSH_LIST_ALL)
+	// Command source types.
+	mustTypeInit(dbc, types.TYPE_FOLIAGE_CONNECTOR_VAGRANT_GLOBAL_STATUS)
+	mustTypeInit(dbc, types.TYPE_FOLIAGE_CONNECTOR_LSHW)
 
 	return nil
 }
