@@ -15,11 +15,11 @@ import (
 
 // Command identifiers used across agents, connectors and this adapter.
 const (
-	cmdInfrastructure        = "infrastructure"
-	cmdServers               = "servers"
-	cmdLsmod                 = "lsmod"
-	cmdVagrantGlobalStatus   = "vagrant_global_status"
-	cmdLshw                  = "lshw"
+	cmdInfrastructure      = "infrastructure"
+	cmdServers             = "servers"
+	cmdLsmod               = "lsmod"
+	cmdVagrantGlobalStatus = "vagrant_global_status"
+	cmdLshw                = "lshw"
 )
 
 // infraPushUpdate is the single entry point for rebuilding the infrastructure digital twin.
@@ -86,6 +86,11 @@ func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContex
 	case apps.APP_CN_HYPERVISOR:
 		switch command {
 		case cmdLsmod:
+			hasKvm, _ := lsmodDetectKVM(raw)
+			if !hasKvm {
+				lg.Logf(lg.InfoLevel, "infra.push_update: skipping hypervisor (no kvm in lsmod) host_id=%s", hostID)
+				break
+			}
 			serverUUID := ensureServer(dbc, hostID)
 			hypUUID := ensureHypervisor(dbc, serverUUID, hostID)
 			reconcileLsmod(dbc, hypUUID, raw)
@@ -96,6 +101,13 @@ func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContex
 	case apps.APP_CN_VIRTUAL_MACHINE:
 		switch command {
 		case cmdVagrantGlobalStatus:
+			// Only consider Vagrant VMs for KVM hosts. The hypervisor object must be created
+			// by a prior `lsmod` ingestion that detected KVM.
+			probeHypUUID := fmt.Sprintf("%s__kvm", strings.TrimSpace(hostID))
+			if _, err := dbc.CMDB.ObjectRead(probeHypUUID); err != nil {
+				lg.Logf(lg.InfoLevel, "infra.push_update: skipping vagrant_global_status (no kvm hypervisor detected yet) host_id=%s", hostID)
+				break
+			}
 			serverUUID := ensureServer(dbc, hostID)
 			hypUUID := ensureHypervisor(dbc, serverUUID, hostID)
 			reconcileVagrantGlobalStatus(dbc, hypUUID, hostID, raw)

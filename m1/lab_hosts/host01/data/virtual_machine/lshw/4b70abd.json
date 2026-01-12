@@ -1,5 +1,5 @@
 {
-  "id": "server-192.168.157.12",
+  "id": "vagrant-goofy-koala",
   "class": "system",
   "claimed": true,
   "handle": "DMI:0100",
@@ -10,7 +10,7 @@
   "width": 64,
   "configuration": {
     "boot": "normal",
-    "uuid": "8dfb7a35-aca2-5f89-b5f7-3c1d4c3130c1"
+    "uuid": "da5a50b5-2107-52c6-b2f7-7e93a261a452"
   },
   "capabilities": {
     "smbios-2.8": "SMBIOS version 2.8",

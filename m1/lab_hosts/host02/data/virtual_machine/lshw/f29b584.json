@@ -1,5 +1,5 @@
 {
-  "id": "server-192.168.157.12",
+  "id": "shy-lynx",
   "class": "system",
   "claimed": true,
   "handle": "DMI:0100",
@@ -10,7 +10,7 @@
   "width": 64,
   "configuration": {
     "boot": "normal",
-    "uuid": "8dfb7a35-aca2-5f89-b5f7-3c1d4c3130c1"
+    "uuid": "81421e6f-a83e-5b9b-816a-54c0d4d6870e"
   },
   "capabilities": {
     "smbios-2.8": "SMBIOS version 2.8",
