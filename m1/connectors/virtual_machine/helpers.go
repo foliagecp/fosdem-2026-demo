@@ -33,7 +33,7 @@ func notifyAdapters(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor
 			payload.SetByPath("host_id", easyjson.NewJSON(hostID))
 			payload.SetByPath("command", easyjson.NewJSON(command))
 			payload.SetByPath("source_uuid", easyjson.NewJSON(sourceUUID))
-			payload.SetByPath("source_type", easyjson.NewJSON(types.TYPE_FOLIAGE_CONNECTOR_HYPERV_GET_VM))
+			payload.SetByPath("source_type", easyjson.NewJSON(types.TYPE_FOLIAGE_CONNECTOR_KVM_VIRSH_LIST_ALL))
 
 			for _, uuid := range uuids {
 				adapter, err := dbc.CMDB.ObjectRead(uuid)

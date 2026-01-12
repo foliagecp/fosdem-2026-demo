@@ -21,12 +21,13 @@ const (
 )
 
 // Payload schema (minimal, extensible):
-// {
-//   "target": {"ip": "192.168.157.12", "port": 22},
-//   "auth": {"user": "demo", "password": "demo"},
-//   "exec": {"path": "/opt/scripts/fix_hyperv_vmms.sh", "args": []},
-//   "result": {"uuid": "optional-fixed-uuid"}
-// }
+//
+//	{
+//	  "target": {"ip": "192.168.157.12", "port": 22},
+//	  "auth": {"user": "demo", "password": "demo"},
+//	  "exec": {"path": "/opt/scripts/fix_kvm_libvirtd.sh", "args": []},
+//	  "result": {"uuid": "optional-fixed-uuid"}
+//	}
 func sshRun(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
@@ -90,7 +91,7 @@ func sshRun(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcesso
 		res.SetByPath("result.ok", easyjson.NewJSON(false))
 		res.SetByPath("result.error", easyjson.NewJSON(runErr.Error()))
 	} else {
-		res.SetByPath("result.ok", easyjson.NewJSON(true))		
+		res.SetByPath("result.ok", easyjson.NewJSON(true))
 	}
 	res.SetByPath("result.timestamp_unix_nano", easyjson.NewJSON(time.Now().UnixNano()))
 
@@ -120,7 +121,7 @@ func shellEscape(s string) string {
 	if !strings.ContainsAny(s, " \t\n\r\"'\\$") {
 		return s
 	}
-	return "'" + strings.ReplaceAll(s, "'", "'\\" + "'" + "'") + "'"
+	return "'" + strings.ReplaceAll(s, "'", "'\\"+"'"+"'") + "'"
 }
 
 func sshExec(ip string, port int, user, password, privateKeyStr, cmd string, timeout time.Duration) ([]byte, []byte, error) {

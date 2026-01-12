@@ -12,26 +12,27 @@ import (
 )
 
 const (
-	hypervVMMSCommand          = "hyperv_vmms"
-	hypervVMMSPushUpdateFnName = "function.connector.hypervisor.hyperv_vmms.push_update"
+	kvmVirshListAllCommand          = "kvm_virsh_list_all"
+	kvmVirshListAllPushUpdateFnName = "function.connector.virtual_machine.kvm_virsh_list_all.push_update"
 )
 
 // Payload MUST contain only stdout of the command (already transformed into JSON by the agent).
-func hypervVMMSPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+// For this connector: a JSON object like {"vms": [...]} (recommended) or any JSON (will be wrapped).
+func kvmVirshListAllPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
-		lg.Logln(lg.ErrorLevel, "hyperv_vmms.push_update: cannot create db client")
+		lg.Logln(lg.ErrorLevel, "kvm_virsh_list_all.push_update: cannot create db client")
 		return
 	}
 
-	// Agents publish to the connector vertex ID (cn_hypervisor) to force sequential
+	// Agents publish to the connector vertex ID (cn_virtual_machine) to force sequential
 	// processing. Therefore, host identity must be provided in the payload.
 	//
 	// Expected payload shape:
 	//   {"ip":"<host_ip>", "data": <command_stdout_json>}
 	hostIP, ok := ctx.Payload.GetByPath("ip").AsString()
 	if !ok || strings.TrimSpace(hostIP) == "" {
-		lg.Logln(lg.ErrorLevel, "hyperv_vmms.push_update: missing ip in payload")
+		lg.Logln(lg.ErrorLevel, "kvm_virsh_list_all.push_update: missing ip in payload")
 		return
 	}
 	hostID := strings.ReplaceAll(strings.TrimSpace(hostIP), ".", "_")
@@ -43,7 +44,7 @@ func hypervVMMSPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 		wrapped.SetByPath("data", newData)
 		newData = wrapped
 	}
-	suuid := sourceUUID(hostID, hypervVMMSCommand)
+	suuid := sourceUUID(hostID, kvmVirshListAllCommand)
 
 	old, err := dbc.CMDB.ObjectRead(suuid)
 	if err == nil {
@@ -53,13 +54,13 @@ func hypervVMMSPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 		}
 	}
 
-	if err := dbc.CMDB.ObjectUpdate(suuid, newData, true, types.TYPE_FOLIAGE_CONNECTOR_HYPERV_VMMS); err != nil {
-		lg.Logf(lg.ErrorLevel, "hyperv_vmms.push_update: cannot update source %s: %v", suuid, err)
+	if err := dbc.CMDB.ObjectUpdate(suuid, newData, true, types.TYPE_FOLIAGE_CONNECTOR_KVM_VIRSH_LIST_ALL); err != nil {
+		lg.Logf(lg.ErrorLevel, "kvm_virsh_list_all.push_update: cannot update source %s: %v", suuid, err)
 		return
 	}
 
-	_ = dbc.CMDB.ObjectsLinkUpdate(apps.APP_CN_HYPERVISOR, suuid, nil, easyjson.NewJSONObject(), false, hostID)
+	_ = dbc.CMDB.ObjectsLinkUpdate(apps.APP_CN_VIRTUAL_MACHINE, suuid, nil, easyjson.NewJSONObject(), false, hostID)
 	connectorUpdateStatus(dbc)
 
-	notifyAdapters(dbc, ctx, hostID, hypervVMMSCommand, suuid)
+	notifyAdapters(dbc, ctx, hostID, kvmVirshListAllCommand, suuid)
 }

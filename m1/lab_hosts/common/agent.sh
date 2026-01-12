@@ -41,8 +41,8 @@ require_env CN_HYPERVISOR_ID
 require_env CN_VIRTUAL_MACHINE_ID
 
 require_env PUSH_HOSTNAME_FN
-require_env PUSH_VMMS_FN
-require_env PUSH_GET_VM_FN
+require_env PUSH_LIBVIRTD_FN
+require_env PUSH_VIRSH_LIST_ALL_FN
 
 INTERVAL_SEC="${INTERVAL_SEC:-5}"
 
@@ -104,7 +104,7 @@ log "starting (domain=$FO_DOMAIN host_ip=$HOST_IP)"
 
 while true; do
   push_once "$PUSH_HOSTNAME_FN" "$CN_SERVER_ID" "/opt/commands/hostname_cmd.sh" || true
-  push_once "$PUSH_VMMS_FN" "$CN_HYPERVISOR_ID" "/opt/commands/hyperv_vmms_cmd.sh" || true
-  push_once "$PUSH_GET_VM_FN" "$CN_VIRTUAL_MACHINE_ID" "/opt/commands/hyperv_get_vm_cmd.sh" || true
+  push_once "$PUSH_LIBVIRTD_FN" "$CN_HYPERVISOR_ID" "/opt/commands/kvm_libvirtd_cmd.sh" || true
+  push_once "$PUSH_VIRSH_LIST_ALL_FN" "$CN_VIRTUAL_MACHINE_ID" "/opt/commands/kvm_virsh_list_all_cmd.sh" || true
   sleep "$INTERVAL_SEC"
 done

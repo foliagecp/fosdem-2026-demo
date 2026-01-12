@@ -117,8 +117,8 @@ services:
       CN_VIRTUAL_MACHINE_ID: cn_virtual_machine
       INTERVAL_SEC: 5
       PUSH_HOSTNAME_FN: function.connector.server.hostname.push_update
-      PUSH_VMMS_FN: function.connector.hypervisor.hyperv_vmms.push_update
-      PUSH_GET_VM_FN: function.connector.virtual_machine.hyperv_get_vm.push_update
+      PUSH_LIBVIRTD_FN: function.connector.hypervisor.kvm_libvirtd.push_update
+      PUSH_VIRSH_LIST_ALL_FN: function.connector.virtual_machine.kvm_virsh_list_all.push_update
     ports:
       - "2221:22"
     depends_on:
@@ -150,8 +150,8 @@ services:
       CN_VIRTUAL_MACHINE_ID: cn_virtual_machine
       INTERVAL_SEC: 5
       PUSH_HOSTNAME_FN: function.connector.server.hostname.push_update
-      PUSH_VMMS_FN: function.connector.hypervisor.hyperv_vmms.push_update
-      PUSH_GET_VM_FN: function.connector.virtual_machine.hyperv_get_vm.push_update
+      PUSH_LIBVIRTD_FN: function.connector.hypervisor.kvm_libvirtd.push_update
+      PUSH_VIRSH_LIST_ALL_FN: function.connector.virtual_machine.kvm_virsh_list_all.push_update
     ports:
       - "2222:22"
     depends_on:

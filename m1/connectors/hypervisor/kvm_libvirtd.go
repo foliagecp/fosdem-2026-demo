@@ -12,27 +12,26 @@ import (
 )
 
 const (
-	hypervGetVMCommand          = "hyperv_get_vm"
-	hypervGetVMPushUpdateFnName = "function.connector.virtual_machine.hyperv_get_vm.push_update"
+	kvmLibvirtdCommand          = "kvm_libvirtd"
+	kvmLibvirtdPushUpdateFnName = "function.connector.hypervisor.kvm_libvirtd.push_update"
 )
 
 // Payload MUST contain only stdout of the command (already transformed into JSON by the agent).
-// For this connector: a JSON array of VM objects.
-func hypervGetVMPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+func kvmLibvirtdPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
-		lg.Logln(lg.ErrorLevel, "hyperv_get_vm.push_update: cannot create db client")
+		lg.Logln(lg.ErrorLevel, "kvm_libvirtd.push_update: cannot create db client")
 		return
 	}
 
-	// Agents publish to the connector vertex ID (cn_virtual_machine) to force sequential
+	// Agents publish to the connector vertex ID (cn_hypervisor) to force sequential
 	// processing. Therefore, host identity must be provided in the payload.
 	//
 	// Expected payload shape:
 	//   {"ip":"<host_ip>", "data": <command_stdout_json>}
 	hostIP, ok := ctx.Payload.GetByPath("ip").AsString()
 	if !ok || strings.TrimSpace(hostIP) == "" {
-		lg.Logln(lg.ErrorLevel, "hyperv_get_vm.push_update: missing ip in payload")
+		lg.Logln(lg.ErrorLevel, "kvm_libvirtd.push_update: missing ip in payload")
 		return
 	}
 	hostID := strings.ReplaceAll(strings.TrimSpace(hostIP), ".", "_")
@@ -44,7 +43,7 @@ func hypervGetVMPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.Statefun
 		wrapped.SetByPath("data", newData)
 		newData = wrapped
 	}
-	suuid := sourceUUID(hostID, hypervGetVMCommand)
+	suuid := sourceUUID(hostID, kvmLibvirtdCommand)
 
 	old, err := dbc.CMDB.ObjectRead(suuid)
 	if err == nil {
@@ -54,13 +53,13 @@ func hypervGetVMPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.Statefun
 		}
 	}
 
-	if err := dbc.CMDB.ObjectUpdate(suuid, newData, true, types.TYPE_FOLIAGE_CONNECTOR_HYPERV_GET_VM); err != nil {
-		lg.Logf(lg.ErrorLevel, "hyperv_get_vm.push_update: cannot update source %s: %v", suuid, err)
+	if err := dbc.CMDB.ObjectUpdate(suuid, newData, true, types.TYPE_FOLIAGE_CONNECTOR_KVM_LIBVIRTD); err != nil {
+		lg.Logf(lg.ErrorLevel, "kvm_libvirtd.push_update: cannot update source %s: %v", suuid, err)
 		return
 	}
 
-	_ = dbc.CMDB.ObjectsLinkUpdate(apps.APP_CN_VIRTUAL_MACHINE, suuid, nil, easyjson.NewJSONObject(), false, hostID)
+	_ = dbc.CMDB.ObjectsLinkUpdate(apps.APP_CN_HYPERVISOR, suuid, nil, easyjson.NewJSONObject(), false, hostID)
 	connectorUpdateStatus(dbc)
 
-	notifyAdapters(dbc, ctx, hostID, hypervGetVMCommand, suuid)
+	notifyAdapters(dbc, ctx, hostID, kvmLibvirtdCommand, suuid)
 }

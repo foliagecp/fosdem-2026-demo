@@ -11,9 +11,10 @@ import (
 	"github.com/foliagecp/sdk/clients/go/db"
 	lg "github.com/foliagecp/sdk/statefun/logger"
 	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
-	"github.com/foliagecp/sdk/statefun/system"
 )
 
+// infraPushUpdate is the single entry point for rebuilding the infrastructure digital-twin.
+// It is triggered by connectors via ctx.Signal(...) after they ingest a new raw source snapshot.
 func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
@@ -60,52 +61,58 @@ func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContex
 	raw := srcObj.GetByPath("body").NormalizedClone()
 
 	serverUUID := ensureServer(dbc, hostID)
-	// attach raw source to server/hypervisor/vm depending on command
+
+	// Attach raw source to server/hypervisor/vm depending on the command.
 	switch {
 	case sourceType == types.TYPE_FOLIAGE_CONNECTOR_HOSTNAME || command == "hostname":
 		reconcileHostname(dbc, serverUUID, raw)
 
-	case sourceType == types.TYPE_FOLIAGE_CONNECTOR_HYPERV_VMMS || command == "hyperv_vmms":
+	case sourceType == types.TYPE_FOLIAGE_CONNECTOR_KVM_LIBVIRTD || command == "kvm_libvirtd":
 		hypUUID := ensureHypervisor(dbc, serverUUID, hostID)
-		reconcileHypervVMMS(dbc, hypUUID, raw)
+		reconcileKVMLibvirtd(dbc, hypUUID, raw)
 
-	case sourceType == types.TYPE_FOLIAGE_CONNECTOR_HYPERV_GET_VM || command == "hyperv_get_vm":
+	case sourceType == types.TYPE_FOLIAGE_CONNECTOR_KVM_VIRSH_LIST_ALL || command == "kvm_virsh_list_all":
 		hypUUID := ensureHypervisor(dbc, serverUUID, hostID)
-		reconcileHypervGetVM(dbc, hypUUID, hostID, raw)
+		reconcileKVMVirshListAll(dbc, hypUUID, hostID, raw)
 
 	default:
 		lg.Logf(lg.WarnLevel, "infra.push_update: unknown command=%s source_type=%s", command, sourceType)
 	}
 
-	// keep some top-level linkage + minimal fields
+	// Ensure minimal top-level fields + infra -> server linkage.
 	ip := util.IPFromHostID(hostID)
 	_tmp := easyjson.NewJSONObject()
 	_tmp.SetByPath("summary.ip", easyjson.NewJSON(ip))
+	_tmp.SetByPath("identifiers.host_id", easyjson.NewJSON(hostID))
 	_ = dbc.CMDB.ObjectUpdate(serverUUID, _tmp, false, types.TYPE_FOLIAGE_ADAPTER_SERVER)
 	_ = dbc.CMDB.ObjectsLinkUpdate(infraRootUUID, serverUUID, nil, easyjson.NewJSONObject(), false, hostID)
 
 	adapterUpdateStatus(dbc)
 }
 
+// ensureServer creates/updates the server node for a given host_id.
+// host_id is derived from IP and is used as the server UUID to keep object ids readable.
 func ensureServer(dbc db.DBSyncClient, hostID string) string {
-	serverUUID := system.GetHashStr(strings.TrimSpace(hostID) + types.TYPE_FOLIAGE_ADAPTER_SERVER)
+	hostID = strings.TrimSpace(hostID)
+	serverUUID := hostID
 	if serverUUID == "" {
 		serverUUID = "unknown_host"
 	}
 	data := easyjson.NewJSONObject()
-	data.SetByPath("identifiers.host_id", easyjson.NewJSON(serverUUID))
-	data.SetByPath("summary.ip", easyjson.NewJSON(util.IPFromHostID(serverUUID)))
+	data.SetByPath("identifiers.host_id", easyjson.NewJSON(hostID))
+	data.SetByPath("summary.ip", easyjson.NewJSON(util.IPFromHostID(hostID)))
 	_ = dbc.CMDB.ObjectUpdate(serverUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_SERVER)
 	return serverUUID
 }
 
 func ensureHypervisor(dbc db.DBSyncClient, serverUUID, hostID string) string {
-	hypUUID := system.GetHashStr(fmt.Sprintf("%s__hyperv", hostID) + types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR)
+	hostID = strings.TrimSpace(hostID)
+	hypUUID := fmt.Sprintf("%s__kvm", hostID)
 	data := easyjson.NewJSONObject()
-	data.SetByPath("summary.kind", easyjson.NewJSON("Hyper-V"))
+	data.SetByPath("summary.kind", easyjson.NewJSON("KVM"))
 	data.SetByPath("identifiers.host_id", easyjson.NewJSON(hostID))
 	_ = dbc.CMDB.ObjectUpdate(hypUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR)
-	_ = dbc.CMDB.ObjectsLinkUpdate(serverUUID, hypUUID, nil, easyjson.NewJSONObject(), false, hypUUID)
+	_ = dbc.CMDB.ObjectsLinkUpdate(serverUUID, hypUUID, nil, easyjson.NewJSONObject(), false, "kvm")
 	return hypUUID
 }
 
@@ -118,20 +125,25 @@ func reconcileHostname(dbc db.DBSyncClient, serverUUID string, raw easyjson.JSON
 	_ = dbc.CMDB.ObjectUpdate(serverUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_SERVER)
 }
 
-func reconcileHypervVMMS(dbc db.DBSyncClient, hypUUID string, raw easyjson.JSON) {
+func reconcileKVMLibvirtd(dbc db.DBSyncClient, hypUUID string, raw easyjson.JSON) {
 	data := easyjson.NewJSONObject()
-	data.SetByPath("sources.hyperv_vmms", raw)
+	data.SetByPath("sources.kvm_libvirtd", raw)
 	if st := raw.GetByPath("Status").AsStringDefault(""); st != "" {
 		data.SetByPath("summary.status", easyjson.NewJSON(st))
+	}
+	if name := raw.GetByPath("Name").AsStringDefault(""); name != "" {
+		data.SetByPath("summary.service", easyjson.NewJSON(name))
 	}
 	_ = dbc.CMDB.ObjectUpdate(hypUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR)
 }
 
-func reconcileHypervGetVM(dbc db.DBSyncClient, hypUUID, hostID string, raw easyjson.JSON) {
+func reconcileKVMVirshListAll(dbc db.DBSyncClient, hypUUID, hostID string, raw easyjson.JSON) {
 	// The agent should send only the command output.
-	// For demo purposes we support two shapes:
-	//   1) {"vms": [...]}
-	//   2) [...] (legacy)
+	// Recommended shape:
+	//   {"vms": [{"UUID": "...", "Name": "...", "State": "running"}, ...]}
+	// Legacy/demo fallbacks:
+	//   1) {"data": ...}
+	//   2) [...] (array)
 	var arr []interface{}
 	if raw.IsObject() {
 		if a, ok := raw.GetByPath("vms").AsArray(); ok {
@@ -143,25 +155,25 @@ func reconcileHypervGetVM(dbc db.DBSyncClient, hypUUID, hostID string, raw easyj
 		}
 	}
 	if arr == nil {
-		lg.Logln(lg.WarnLevel, "infra.push_update: hyperv_get_vm raw has no vms array")
+		lg.Logln(lg.WarnLevel, "infra.push_update: kvm_virsh_list_all raw has no vms array")
 		return
 	}
 
 	desired := map[string]easyjson.JSON{}
 	for _, item := range arr {
 		vm := easyjson.NewJSON(item)
-		vmID := vm.GetByPath("VMId").AsStringDefault("")
+		vmID := vm.GetByPath("UUID").AsStringDefault("")
 		if vmID == "" {
 			vmID = vm.GetByPath("Id").AsStringDefault("")
 		}
 		if vmID == "" {
 			continue
 		}
-		vmUUID := sanitizeVMUUID(hostID, vmID)
+		vmUUID := makeVMUUID(hostID, vmID)
 		desired[vmUUID] = vm
 	}
 
-	// delete stale
+	// Delete stale VMs linked under this hypervisor.
 	if uuids, err := dbc.Query.JPGQLCtraQuery(hypUUID, fmt.Sprintf(".*[l:type('%s')]", types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE)); err == nil {
 		for _, u := range uuids {
 			if _, ok := desired[u]; !ok {
@@ -172,27 +184,28 @@ func reconcileHypervGetVM(dbc db.DBSyncClient, hypUUID, hostID string, raw easyj
 
 	for vmUUID, vm := range desired {
 		data := easyjson.NewJSONObject()
-		data.SetByPath("sources.hyperv_get_vm", vm)
+		data.SetByPath("sources.kvm_virsh_list_all", vm)
 		if name := vm.GetByPath("Name").AsStringDefault(""); name != "" {
 			data.SetByPath("summary.name", easyjson.NewJSON(name))
 		}
 		if state := vm.GetByPath("State").AsStringDefault(""); state != "" {
 			data.SetByPath("summary.state", easyjson.NewJSON(state))
 		}
-		data.SetByPath("summary.vm_id", easyjson.NewJSON(vm.GetByPath("VMId").AsStringDefault(vm.GetByPath("Id").AsStringDefault(""))))
+		data.SetByPath("summary.uuid", easyjson.NewJSON(vm.GetByPath("UUID").AsStringDefault(vm.GetByPath("Id").AsStringDefault(""))))
 		_ = dbc.CMDB.ObjectUpdate(vmUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE)
 		_ = dbc.CMDB.ObjectsLinkUpdate(hypUUID, vmUUID, nil, easyjson.NewJSONObject(), false, vm.GetByPath("Name").AsStringDefault("vm"))
 	}
 
-	// also keep raw at hypervisor level for debugging
+	// Also keep raw at hypervisor level for debugging.
 	_tmp2 := easyjson.NewJSONObject()
-	_tmp2.SetByPath("sources.hyperv_get_vm", raw)
+	_tmp2.SetByPath("sources.kvm_virsh_list_all", raw)
 	_ = dbc.CMDB.ObjectUpdate(hypUUID, _tmp2, false, types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR)
 }
 
-func sanitizeVMUUID(hostID, vmID string) string {
+func makeVMUUID(hostID, vmID string) string {
 	vmID = strings.TrimSpace(vmID)
 	vmID = strings.ToLower(vmID)
 	vmID = strings.ReplaceAll(vmID, "-", "_")
-	return system.GetHashStr(fmt.Sprintf("%s__vm__%s", hostID, vmID) + types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE)
+	vmID = strings.ReplaceAll(vmID, ":", "_")
+	return fmt.Sprintf("%s__vm__%s", strings.TrimSpace(hostID), vmID)
 }
