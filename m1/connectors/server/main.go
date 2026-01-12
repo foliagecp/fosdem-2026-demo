@@ -21,9 +21,7 @@ var (
 )
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
-	statefun.NewFunctionType(runtime, infrastructurePushUpdateFnName, infrastructurePushUpdate, *statefun.NewFunctionTypeConfig())
-	statefun.NewFunctionType(runtime, serversPushUpdateFnName, serversPushUpdate, *statefun.NewFunctionTypeConfig())
-	statefun.NewFunctionType(runtime, lshwPushUpdateFnName, lshwPushUpdate, *statefun.NewFunctionTypeConfig())
+			statefun.NewFunctionType(runtime, lshwPushUpdateFnName, lshwPushUpdate, *statefun.NewFunctionTypeConfig())
 }
 
 func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
@@ -36,10 +34,7 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_CONNECTOR, easyjson.NewJSONObject(), false, true))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CN_SERVER, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_APP_CONNECTOR))
 
-	// Command source types.
-	mustTypeInit(dbc, types.TYPE_FOLIAGE_CONNECTOR_INFRASTRUCTURE)
-	mustTypeInit(dbc, types.TYPE_FOLIAGE_CONNECTOR_SERVERS)
-	mustTypeInit(dbc, types.TYPE_FOLIAGE_CONNECTOR_LSHW)
+	// Command source types.	mustTypeInit(dbc, types.TYPE_FOLIAGE_CONNECTOR_LSHW)
 
 	return nil
 }

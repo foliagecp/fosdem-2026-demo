@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Emulates: lshw -json executed inside a VM.
+# Emulates: `vagrant ssh <VM_ID> && sudo -i && lshw -json` executed inside a VM.
 # The VM identity is passed by the agent as the first argument.
 
-VM_NAME="${1:-}"
-if [[ -z "$VM_NAME" ]]; then
-  echo '{"error":"missing vm name"}'
+VM_ID="${1:-}"
+if [[ -z "$VM_ID" ]]; then
+  echo '{"error":"missing vm id"}'
   exit 0
 fi
 
-FILE="/opt/data/virtual_machine/lshw/${VM_NAME}.json"
+FILE="/opt/data/virtual_machine/lshw/${VM_ID}.json"
 if [[ ! -f "$FILE" ]]; then
   echo '{"error":"unknown vm"}'
   exit 0

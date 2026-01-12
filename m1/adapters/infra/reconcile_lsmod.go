@@ -8,28 +8,24 @@ import (
 	"github.com/foliagecp/sdk/clients/go/db"
 )
 
-// reconcileLsmod updates hypervisor state based on raw `lsmod` output.
-//
-// Example expected JSON:
-//   {"modules":[{"name":"kvm"},{"name":"kvm_intel"}]}
-//   {"modules":["kvm","kvm_intel"]}
-func reconcileLsmod(dbc db.DBSyncClient, hypUUID string, raw easyjson.JSON) {
-	mods := []string{}
+// lsmodDetectKVM parses the normalized JSON produced by the agent for `lsmod`
+// and returns whether KVM-related modules are present.
+func lsmodDetectKVM(raw easyjson.JSON) (kvmLoaded bool, modules []string) {
+	modules = []string{}
 	if raw.IsObject() {
 		if a, ok := raw.GetByPath("modules").AsArray(); ok {
 			for _, it := range a {
 				j := easyjson.NewJSON(it)
 				if j.IsString() {
-					mods = append(mods, j.AsStringDefault(""))
+					modules = append(modules, j.AsStringDefault(""))
 					continue
 				}
-				mods = append(mods, j.GetByPath("name").AsStringDefault(""))
+				modules = append(modules, j.GetByPath("name").AsStringDefault(""))
 			}
 		}
 	}
 
-	kvmLoaded := false
-	for _, m := range mods {
+	for _, m := range modules {
 		m = strings.TrimSpace(m)
 		if m == "" {
 			continue
@@ -37,8 +33,20 @@ func reconcileLsmod(dbc db.DBSyncClient, hypUUID string, raw easyjson.JSON) {
 		// KVM is typically represented as kvm + kvm_intel/kvm_amd.
 		if m == "kvm" || strings.HasPrefix(m, "kvm_") {
 			kvmLoaded = true
+			break
 		}
 	}
+	return kvmLoaded, modules
+}
+
+// reconcileLsmod updates hypervisor state based on raw `lsmod` output.
+//
+// Example expected JSON:
+//
+//	{"modules":[{"name":"kvm"},{"name":"kvm_intel"}]}
+//	{"modules":["kvm","kvm_intel"]}
+func reconcileLsmod(dbc db.DBSyncClient, hypUUID string, raw easyjson.JSON) {
+	kvmLoaded, mods := lsmodDetectKVM(raw)
 
 	data := easyjson.NewJSONObject()
 	data.SetByPath("sources.lsmod", raw)
