@@ -13,16 +13,18 @@ import (
 )
 
 func buildLinks(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+	le := lg.GetLogger()
+	logCtx := context.Background()
+
 	funcCtx := ctx.GetFunctionContext()
 	rebuildVersion := funcCtx.GetByPath("rebuildVersion").AsNumericDefault(0)
-	lg.GetLogger().Infof(context.TODO(), "function 'buildLinks' has started, current version: %v", rebuildVersion)
+	le.Infof(logCtx, "function 'buildLinks' has started, current version: %v", rebuildVersion)
 	rebuildVersion++
 	funcCtx.SetByPath("rebuildVersion", easyjson.NewJSON(rebuildVersion))
 	ctx.SetFunctionContext(funcCtx)
 
 	const foliageReadFunc = "functions.cmdb.api.object.read"
-	le := lg.GetLogger()
-	logCtx := context.Background()
+
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
 		le.Errorf(logCtx, "buildLinks: cannot create db client: %v", err)

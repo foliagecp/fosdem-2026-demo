@@ -50,13 +50,14 @@ const (
 type EventType = string
 
 type Watcher struct {
-	runtime          *statefun.Runtime
-	dbc              *db.DBSyncClient
-	clusterID        string
-	nodeLister       core.NodeLister
-	podLister        core.PodLister
-	deploymentLister apps.DeploymentLister
-	replicaSetLister apps.ReplicaSetLister
+	runtime             *statefun.Runtime
+	dbc                 *db.DBSyncClient
+	k8sInfrastructureID string
+	clusterID           string
+	nodeLister          core.NodeLister
+	podLister           core.PodLister
+	deploymentLister    apps.DeploymentLister
+	replicaSetLister    apps.ReplicaSetLister
 
 	// rebuild
 	rebuildMu         sync.Mutex
@@ -78,7 +79,13 @@ func NewK8sClient(kubeconfigPath string) (*k8s.Clientset, error) {
 	return clientSet, nil
 }
 
-func NewWatcher(runtime *statefun.Runtime, k8sClient k8s.Interface, clusterID string, stopCh <-chan struct{}) (*Watcher, error) {
+func NewWatcher(
+	runtime *statefun.Runtime,
+	k8sClient k8s.Interface,
+	k8sInfrastructureID string,
+	clusterID string,
+	stopCh <-chan struct{},
+) (*Watcher, error) {
 	factory := informers.NewSharedInformerFactory(k8sClient, 0)
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
@@ -87,16 +94,17 @@ func NewWatcher(runtime *statefun.Runtime, k8sClient k8s.Interface, clusterID st
 	}
 
 	w := &Watcher{
-		runtime:           runtime,
-		dbc:               &dbc,
-		clusterID:         clusterID,
-		nodeLister:        factory.Core().V1().Nodes().Lister(),
-		podLister:         factory.Core().V1().Pods().Lister(),
-		deploymentLister:  factory.Apps().V1().Deployments().Lister(),
-		replicaSetLister:  factory.Apps().V1().ReplicaSets().Lister(),
-		rebuildMu:         sync.Mutex{},
-		delayRebuildTimer: nil,
-		rebuildPending:    false,
+		runtime:             runtime,
+		dbc:                 &dbc,
+		k8sInfrastructureID: k8sInfrastructureID,
+		clusterID:           clusterID,
+		nodeLister:          factory.Core().V1().Nodes().Lister(),
+		podLister:           factory.Core().V1().Pods().Lister(),
+		deploymentLister:    factory.Apps().V1().Deployments().Lister(),
+		replicaSetLister:    factory.Apps().V1().ReplicaSets().Lister(),
+		rebuildMu:           sync.Mutex{},
+		delayRebuildTimer:   nil,
+		rebuildPending:      false,
 	}
 
 	genericHandler := cache.ResourceEventHandlerFuncs{
@@ -208,6 +216,7 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 			return
 		}
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
+		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.k8sInfrastructureID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
 		if typeName == m2.POD_TYPE || typeName == m2.DEPLOYMENT_TYPE {
 			body.SetByPath("type", easyjson.NewJSON(typeName))
 			body.SetByPath("operation", easyjson.NewJSON("add"))
@@ -219,6 +228,7 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 			return
 		}
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
+		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.k8sInfrastructureID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
 	}
 
 	w.markDirty()

@@ -63,43 +63,24 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 		}
 	}
 
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.CONNECTOR_ADAPTER_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.CLUSTER_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.NODE_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.POD_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.DEPLOYMENT_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.REPLICATION_SET_TYPE, easyjson.NewJSONObject(), false, true))
-
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CONNECTOR_ADAPTER_TYPE, m2.CLUSTER_TYPE, nil, easyjson.NewJSONObject(), false, m2.CLUSTER_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.NODE_TYPE, nil, easyjson.NewJSONObject(), false, m2.NODE_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.DEPLOYMENT_TYPE, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
-
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.NODE_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.POD_TYPE, m2.NODE_TYPE, nil, easyjson.NewJSONObject(), false, m2.NODE_TYPE))
-
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.DEPLOYMENT_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.POD_TYPE, m2.DEPLOYMENT_TYPE, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
-
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.DEPLOYMENT_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.REPLICATION_SET_TYPE, m2.DEPLOYMENT_TYPE, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
-
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.REPLICATION_SET_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.POD_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
+	createScheme(dbc)
 
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(runtimeName, easyjson.NewJSONObject(), true, m2.CONNECTOR_ADAPTER_TYPE))
+
+	k8sInfrastructureObjectID := system.GetHashStr(m2.INFRASTRUCTURE_TYPE)
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(k8sInfrastructureObjectID, easyjson.NewJSONObject(), true, m2.INFRASTRUCTURE_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(runtimeName, k8sInfrastructureObjectID, nil, easyjson.NewJSONObject(), true, k8sInfrastructureObjectID))
 
 	clusterBody := easyjson.NewJSONObject()
 	clusterBody.SetByPath("cluster_name", easyjson.NewJSON(clusterName))
 	clusterBody.SetByPath("cluster_id", easyjson.NewJSON(clusterID))
 
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, clusterBody, true, m2.CLUSTER_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(runtimeName, clusterID, nil, easyjson.NewJSONObject(), true, clusterID))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(k8sInfrastructureObjectID, clusterID, nil, easyjson.NewJSONObject(), true, clusterID))
 
 	stopCh := make(chan struct{})
 
-	_, err = NewWatcher(runtime, k8sClient, clusterID, stopCh)
+	_, err = NewWatcher(runtime, k8sClient, k8sInfrastructureObjectID, clusterID, stopCh)
 	if err != nil {
 		lg.GetLogger().Errorf(ctx, "create k8s watcher error: %v", err)
 		return err

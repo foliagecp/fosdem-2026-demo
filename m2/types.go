@@ -2,6 +2,7 @@ package m2
 
 const (
 	CONNECTOR_ADAPTER_TYPE = "foliage-k8s-cn_ad"
+	INFRASTRUCTURE_TYPE    = "foliage-k8s-infrastructure"
 	CLUSTER_TYPE           = "foliage-k8s-cluster"
 	NODE_TYPE              = "foliage-k8s-node"
 	POD_TYPE               = "foliage-k8s-pod"
