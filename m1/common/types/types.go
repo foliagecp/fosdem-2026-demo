@@ -8,9 +8,9 @@ const (
 	// ----------------------------------------------------
 
 	// Connector sources (by command) ---------------------
-	TYPE_FOLIAGE_CONNECTOR_HOSTNAME       = "foliage-connector-hostname"
-	TYPE_FOLIAGE_CONNECTOR_HYPERV_VMMS    = "foliage-connector-hyperv_vmms"
-	TYPE_FOLIAGE_CONNECTOR_HYPERV_GET_VM  = "foliage-connector-hyperv_get_vm"
+	TYPE_FOLIAGE_CONNECTOR_HOSTNAME           = "foliage-connector-hostname"
+	TYPE_FOLIAGE_CONNECTOR_KVM_LIBVIRTD       = "foliage-connector-kvm_libvirtd"
+	TYPE_FOLIAGE_CONNECTOR_KVM_VIRSH_LIST_ALL = "foliage-connector-kvm_virsh_list_all"
 	// ----------------------------------------------------
 
 	// Adapter (digital twin) -----------------------------

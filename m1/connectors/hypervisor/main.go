@@ -21,7 +21,7 @@ var (
 )
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
-	statefun.NewFunctionType(runtime, hypervVMMSPushUpdateFnName, hypervVMMSPushUpdate, *statefun.NewFunctionTypeConfig())
+	statefun.NewFunctionType(runtime, kvmLibvirtdPushUpdateFnName, kvmLibvirtdPushUpdate, *statefun.NewFunctionTypeConfig())
 }
 
 func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
@@ -33,7 +33,7 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_CONNECTOR, easyjson.NewJSONObject(), false, true))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CN_HYPERVISOR, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_APP_CONNECTOR))
 
-	mustTypeInit(dbc, types.TYPE_FOLIAGE_CONNECTOR_HYPERV_VMMS)
+	mustTypeInit(dbc, types.TYPE_FOLIAGE_CONNECTOR_KVM_LIBVIRTD)
 
 	return nil
 }
