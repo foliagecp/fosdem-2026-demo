@@ -14,10 +14,7 @@ import (
 )
 
 // Command identifiers used across agents, connectors and this adapter.
-const (
-	cmdInfrastructure      = "infrastructure"
-	cmdServers             = "servers"
-	cmdLsmod               = "lsmod"
+const (	cmdLsmod               = "lsmod"
 	cmdVagrantGlobalStatus = "vagrant_global_status"
 	cmdLshw                = "lshw"
 )
@@ -72,10 +69,6 @@ func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContex
 	switch callerShort {
 	case apps.APP_CN_SERVER:
 		switch command {
-		case cmdInfrastructure:
-			reconcileInfrastructure(dbc, raw)
-		case cmdServers:
-			reconcileServers(dbc, raw)
 		case cmdLshw:
 			serverUUID := ensureServer(dbc, hostID)
 			reconcileLshwServer(dbc, serverUUID, raw)
