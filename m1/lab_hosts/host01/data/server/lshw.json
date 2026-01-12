@@ -1,0 +1,52 @@
+{
+  "id": "lab_host01",
+  "class": "system",
+  "vendor": "DemoVendor",
+  "product": "DemoKVMHost",
+  "serial": "HOST01-SN",
+  "children": [
+    {
+      "id": "cpu:0",
+      "class": "processor",
+      "vendor": "Intel",
+      "product": "Intel(R) Xeon(R) Demo CPU",
+      "configuration": {
+        "cores": 8,
+        "enabledcores": 8
+      },
+      "capabilities": [
+        "vmx",
+        "fpu",
+        "mmx",
+        "sse2"
+      ]
+    },
+    {
+      "id": "firmware",
+      "class": "memory",
+      "description": "BIOS",
+      "vendor": "DemoBIOS",
+      "version": "1.0.0",
+      "date": "2025-12-01"
+    },
+    {
+      "id": "disk:0",
+      "class": "disk",
+      "vendor": "DemoDiskVendor",
+      "product": "DemoSSD",
+      "serial": "DISK01-SN",
+      "size": 536870912000
+    },
+    {
+      "id": "network:0",
+      "class": "network",
+      "vendor": "DemoNet",
+      "product": "DemoNIC",
+      "serial": "52:54:00:11:22:33",
+      "logicalname": "eth0",
+      "configuration": {
+        "ip": "192.168.157.11"
+      }
+    }
+  ]
+}

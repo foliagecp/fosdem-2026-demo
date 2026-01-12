@@ -1,0 +1,9 @@
+{
+  "modules": [
+    "kvm",
+    "kvm_amd",
+    "vhost_net",
+    "tap",
+    "bridge"
+  ]
+}

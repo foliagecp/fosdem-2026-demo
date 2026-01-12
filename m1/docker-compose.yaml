@@ -112,13 +112,18 @@ services:
       NATS_PASS: foliage
       FO_DOMAIN: m1
       HOST_IP: 192.168.157.11
+      BOOTSTRAP: "1"
+      VERBOSE: "1"
       CN_SERVER_ID: cn_server
       CN_HYPERVISOR_ID: cn_hypervisor
       CN_VIRTUAL_MACHINE_ID: cn_virtual_machine
       INTERVAL_SEC: 5
-      PUSH_HOSTNAME_FN: function.connector.server.hostname.push_update
-      PUSH_LIBVIRTD_FN: function.connector.hypervisor.kvm_libvirtd.push_update
-      PUSH_VIRSH_LIST_ALL_FN: function.connector.virtual_machine.kvm_virsh_list_all.push_update
+      PUSH_INFRASTRUCTURE_FN: function.connector.server.infrastructure.push_update
+      PUSH_SERVERS_FN: function.connector.server.servers.push_update
+      PUSH_LSHW_SERVER_FN: function.connector.server.lshw.push_update
+      PUSH_LSMOD_FN: function.connector.hypervisor.lsmod.push_update
+      PUSH_VAGRANT_GLOBAL_STATUS_FN: function.connector.virtual_machine.vagrant_global_status.push_update
+      PUSH_LSHW_VM_FN: function.connector.virtual_machine.lshw.push_update
     ports:
       - "2221:22"
     depends_on:
@@ -145,13 +150,18 @@ services:
       NATS_PASS: foliage
       FO_DOMAIN: m1
       HOST_IP: 192.168.157.12
+      BOOTSTRAP: "0"
+      VERBOSE: "1"
       CN_SERVER_ID: cn_server
       CN_HYPERVISOR_ID: cn_hypervisor
       CN_VIRTUAL_MACHINE_ID: cn_virtual_machine
       INTERVAL_SEC: 5
-      PUSH_HOSTNAME_FN: function.connector.server.hostname.push_update
-      PUSH_LIBVIRTD_FN: function.connector.hypervisor.kvm_libvirtd.push_update
-      PUSH_VIRSH_LIST_ALL_FN: function.connector.virtual_machine.kvm_virsh_list_all.push_update
+      PUSH_INFRASTRUCTURE_FN: function.connector.server.infrastructure.push_update
+      PUSH_SERVERS_FN: function.connector.server.servers.push_update
+      PUSH_LSHW_SERVER_FN: function.connector.server.lshw.push_update
+      PUSH_LSMOD_FN: function.connector.hypervisor.lsmod.push_update
+      PUSH_VAGRANT_GLOBAL_STATUS_FN: function.connector.virtual_machine.vagrant_global_status.push_update
+      PUSH_LSHW_VM_FN: function.connector.virtual_machine.lshw.push_update
     ports:
       - "2222:22"
     depends_on:

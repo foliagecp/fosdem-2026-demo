@@ -1,0 +1,5 @@
+{
+  "name": "FOSDEM 2026 Lab",
+  "environment": "demo",
+  "description": "Two KVM hosts running a socks shop demo (inventory data is emulated)."
+}

@@ -1,0 +1,52 @@
+{
+  "id": "lab_host02",
+  "class": "system",
+  "vendor": "DemoVendor",
+  "product": "DemoKVMHost",
+  "serial": "HOST02-SN",
+  "children": [
+    {
+      "id": "cpu:0",
+      "class": "processor",
+      "vendor": "AMD",
+      "product": "AMD EPYC Demo CPU",
+      "configuration": {
+        "cores": 16,
+        "enabledcores": 16
+      },
+      "capabilities": [
+        "svm",
+        "fpu",
+        "mmx",
+        "sse2"
+      ]
+    },
+    {
+      "id": "firmware",
+      "class": "memory",
+      "description": "BIOS",
+      "vendor": "DemoBIOS",
+      "version": "2.0.0",
+      "date": "2025-12-02"
+    },
+    {
+      "id": "disk:0",
+      "class": "disk",
+      "vendor": "DemoDiskVendor",
+      "product": "DemoSSD",
+      "serial": "DISK02-SN",
+      "size": 1073741824000
+    },
+    {
+      "id": "network:0",
+      "class": "network",
+      "vendor": "DemoNet",
+      "product": "DemoNIC",
+      "serial": "52:54:00:11:22:44",
+      "logicalname": "eth0",
+      "configuration": {
+        "ip": "192.168.157.12"
+      }
+    }
+  ]
+}

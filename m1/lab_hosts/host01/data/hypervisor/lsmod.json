@@ -1,0 +1,7 @@
+{
+  "modules": [
+    "bridge",
+    "tap",
+    "vhost_net"
+  ]
+}

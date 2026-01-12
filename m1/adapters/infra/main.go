@@ -21,7 +21,8 @@ const (
 )
 
 var (
-	infraRootUUID = system.GetHashStr("infra" + types.TYPE_FOLIAGE_ADAPTER_INFRA)
+	// Root node ID is kept human-readable to simplify demos.
+	infraRootUUID = "infra"
 )
 
 var (
@@ -38,31 +39,63 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 		return err
 	}
 
-	// App object (adapter)
+	// Adapter app object.
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, easyjson.NewJSONObject(), false, true))
 
 	adapterBody := easyjson.NewJSONObject()
 	adapterBody.SetByPath("push_update_function", easyjson.NewJSON(pushUpdateFnName))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_AD_INFRA, adapterBody, true, types.TYPE_FOLIAGE_APP_ADAPTER))
 
-	// Domain types
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_ADAPTER_INFRA, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_ADAPTER_SERVER, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, easyjson.NewJSONObject(), false, true))
+	// Domain types.
+	domainTypes := []string{
+		types.TYPE_FOLIAGE_ADAPTER_INFRA,
+		types.TYPE_FOLIAGE_ADAPTER_SERVER,
+		types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR,
+		types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE,
+		types.TYPE_FOLIAGE_ADAPTER_CPU,
+		types.TYPE_FOLIAGE_ADAPTER_SOCKET,
+		types.TYPE_FOLIAGE_ADAPTER_RAM_STICK,
+		types.TYPE_FOLIAGE_ADAPTER_DISK,
+		types.TYPE_FOLIAGE_ADAPTER_BIOS,
+		types.TYPE_FOLIAGE_ADAPTER_SN,
+		types.TYPE_FOLIAGE_ADAPTER_NETWORK_ADAPTER,
+	}
+	for _, t := range domainTypes {
+		system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(t, easyjson.NewJSONObject(), false, true))
+		system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, t, nil, easyjson.NewJSONObject(), false, t))
+	}
 
-	// Allow adapter app to link to domain objects
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, types.TYPE_FOLIAGE_ADAPTER_INFRA, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_INFRA))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, types.TYPE_FOLIAGE_ADAPTER_SERVER, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_SERVER))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE))
+	// Domain links (both directions where needed).
+	linkTypes := [][2]string{
+		{types.TYPE_FOLIAGE_ADAPTER_INFRA, types.TYPE_FOLIAGE_ADAPTER_SERVER},
+		{types.TYPE_FOLIAGE_ADAPTER_INFRA, types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR},
+		{types.TYPE_FOLIAGE_ADAPTER_INFRA, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE},
+		{types.TYPE_FOLIAGE_ADAPTER_SERVER, types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR},
+		{types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR, types.TYPE_FOLIAGE_ADAPTER_SERVER},
+		{types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE},
+		{types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR},
 
-	// Domain links
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_INFRA, types.TYPE_FOLIAGE_ADAPTER_SERVER, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_SERVER))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_SERVER, types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_HYPERVISOR, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE))
+		{types.TYPE_FOLIAGE_ADAPTER_SERVER, types.TYPE_FOLIAGE_ADAPTER_CPU},
+		{types.TYPE_FOLIAGE_ADAPTER_SERVER, types.TYPE_FOLIAGE_ADAPTER_SOCKET},
+		{types.TYPE_FOLIAGE_ADAPTER_SERVER, types.TYPE_FOLIAGE_ADAPTER_RAM_STICK},
+		{types.TYPE_FOLIAGE_ADAPTER_SERVER, types.TYPE_FOLIAGE_ADAPTER_DISK},
+		{types.TYPE_FOLIAGE_ADAPTER_SERVER, types.TYPE_FOLIAGE_ADAPTER_BIOS},
+		{types.TYPE_FOLIAGE_ADAPTER_SERVER, types.TYPE_FOLIAGE_ADAPTER_SN},
+		{types.TYPE_FOLIAGE_ADAPTER_SERVER, types.TYPE_FOLIAGE_ADAPTER_NETWORK_ADAPTER},
 
-	// Root object
+		{types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_ADAPTER_CPU},
+		{types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_ADAPTER_SOCKET},
+		{types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_ADAPTER_RAM_STICK},
+		{types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_ADAPTER_DISK},
+		{types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_ADAPTER_BIOS},
+		{types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_ADAPTER_SN},
+		{types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_ADAPTER_NETWORK_ADAPTER},
+	}
+	for _, p := range linkTypes {
+		system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(p[0], p[1], nil, easyjson.NewJSONObject(), false, p[1]))
+	}
+
+	// Root object.
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(infraRootUUID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_INFRA))
 
 	return nil

@@ -7,10 +7,12 @@ const (
 	TYPE_FOLIAGE_APP_ADAPTER   = "foliage-app-adapter"
 	// ----------------------------------------------------
 
-	// Connector sources (by command) ---------------------
-	TYPE_FOLIAGE_CONNECTOR_HOSTNAME           = "foliage-connector-hostname"
-	TYPE_FOLIAGE_CONNECTOR_KVM_LIBVIRTD       = "foliage-connector-kvm_libvirtd"
-	TYPE_FOLIAGE_CONNECTOR_KVM_VIRSH_LIST_ALL = "foliage-connector-kvm_virsh_list_all"
+	// Connector sources (by command / data source) -------
+	TYPE_FOLIAGE_CONNECTOR_INFRASTRUCTURE        = "foliage-connector-infrastructure"
+	TYPE_FOLIAGE_CONNECTOR_SERVERS               = "foliage-connector-servers"
+	TYPE_FOLIAGE_CONNECTOR_LSMOD                 = "foliage-connector-lsmod"
+	TYPE_FOLIAGE_CONNECTOR_VAGRANT_GLOBAL_STATUS = "foliage-connector-vagrant_global_status"
+	TYPE_FOLIAGE_CONNECTOR_LSHW                  = "foliage-connector-lshw"
 	// ----------------------------------------------------
 
 	// Adapter (digital twin) -----------------------------
@@ -18,6 +20,15 @@ const (
 	TYPE_FOLIAGE_ADAPTER_SERVER          = "foliage-adapter-server"
 	TYPE_FOLIAGE_ADAPTER_HYPERVISOR      = "foliage-adapter-hypervisor"
 	TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE = "foliage-adapter-virtual_machine"
+
+	// Component types derived from lshw ------------------
+	TYPE_FOLIAGE_ADAPTER_CPU             = "foliage-adapter-cpu"
+	TYPE_FOLIAGE_ADAPTER_SOCKET          = "foliage-adapter-socket"
+	TYPE_FOLIAGE_ADAPTER_RAM_STICK       = "foliage-adapter-ram_stick"
+	TYPE_FOLIAGE_ADAPTER_DISK            = "foliage-adapter-disk"
+	TYPE_FOLIAGE_ADAPTER_BIOS            = "foliage-adapter-bios"
+	TYPE_FOLIAGE_ADAPTER_SN              = "foliage-adapter-sn"
+	TYPE_FOLIAGE_ADAPTER_NETWORK_ADAPTER = "foliage-adapter-network_adapter"
 	// ----------------------------------------------------
 
 	// Cmd types ------------------------------------------
