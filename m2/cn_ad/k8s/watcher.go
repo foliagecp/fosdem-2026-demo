@@ -140,6 +140,11 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 		m2Object.SetByPath("name", easyjson.NewJSON(resource.Name))
 		m2Object.SetByPath("systemUID", easyjson.NewJSON(resource.Status.NodeInfo.SystemUUID))
 
+		m2Object.SetByPath("cpuAllocatableMilli", easyjson.NewJSON(resource.Status.Allocatable.Cpu().MilliValue()))
+		m2Object.SetByPath("cpuCapacityMilli", easyjson.NewJSON(resource.Status.Capacity.Cpu().MilliValue()))
+		m2Object.SetByPath("memAllocatableBytes", easyjson.NewJSON(resource.Status.Allocatable.Memory().Value()))
+		m2Object.SetByPath("memCapacityBytes", easyjson.NewJSON(resource.Status.Capacity.Memory().Value()))
+
 		typeName = m2.NODE_TYPE
 
 	case *corev1.Pod:
@@ -153,6 +158,25 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 		m2Object.SetByPath("labelsApp", easyjson.NewJSON(resource.Labels["app"]))
 		if containers := resource.Spec.Containers; len(containers) > 0 {
 			m2Object.SetByPath("containersImage", easyjson.NewJSON(containers[0].Image))
+			var cpuReq, cpuLim, memReq, memLim int64
+			for _, container := range containers {
+				if cr := container.Resources.Requests.Cpu(); cr != nil {
+					cpuReq += cr.MilliValue()
+				}
+				if mr := container.Resources.Requests.Memory(); mr != nil {
+					memReq += mr.Value()
+				}
+				if cl := container.Resources.Limits.Cpu(); cl != nil {
+					cpuLim += cl.MilliValue()
+				}
+				if ml := container.Resources.Limits.Memory(); ml != nil {
+					memLim += ml.Value()
+				}
+			}
+			m2Object.SetByPath("cpuRequestsMilli", easyjson.NewJSON(cpuReq))
+			m2Object.SetByPath("cpuLimitsMilli", easyjson.NewJSON(cpuLim))
+			m2Object.SetByPath("memRequestsBytes", easyjson.NewJSON(memReq))
+			m2Object.SetByPath("memLimitsBytes", easyjson.NewJSON(memLim))
 		}
 		if ownerReferences := resource.OwnerReferences; len(ownerReferences) > 0 {
 			for _, ownerReference := range ownerReferences {

@@ -98,7 +98,7 @@ func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(
 		runtime,
 		"functions.cn_ad.k8s.build",
-		buildLinks,
+		build,
 		*statefun.NewFunctionTypeConfig().SetAllowedSignalProviders(sfPlugins.AutoSignalSelect),
 	)
 	statefun.NewFunctionType(

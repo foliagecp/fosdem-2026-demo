@@ -12,7 +12,22 @@ import (
 	"github.com/foliagecp/sdk/statefun/system"
 )
 
-func buildLinks(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+type Resources struct {
+	CPU struct {
+		Capacity    float64 `json:"capacity"`
+		Allocatable float64 `json:"allocatable"`
+		Requests    float64 `json:"requests"`
+		Limits      float64 `json:"limits"`
+	} `json:"cpu"`
+	Memory struct {
+		Capacity    float64 `json:"capacity"`
+		Allocatable float64 `json:"allocatable"`
+		Requests    float64 `json:"requests"`
+		Limits      float64 `json:"limits"`
+	} `json:"memory"`
+}
+
+func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	le := lg.GetLogger()
 	logCtx := context.Background()
 
@@ -36,6 +51,9 @@ func buildLinks(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProc
 		return
 	}
 	for _, clusterID := range clusters {
+
+		res := new(Resources)
+
 		nodes, err := ctx.ObjectRequest(
 			sfPlugins.AutoRequestSelect,
 			sfPlugins.NewLinkQuery(m2.NODE_TYPE),
@@ -52,6 +70,11 @@ func buildLinks(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProc
 		nodesNameMap := make(map[string]string, len(nodes))
 		for nodeID, node := range nodes {
 			if node.ReqError == nil {
+				res.CPU.Capacity += node.ReqReply.GetByPath("data.body.cpuCapacityMilli").AsNumericDefault(0)
+				res.Memory.Capacity += node.ReqReply.GetByPath("data.body.memCapacityBytes").AsNumericDefault(0)
+				res.CPU.Allocatable += node.ReqReply.GetByPath("data.body.cpuAllocatableMilli").AsNumericDefault(0)
+				res.Memory.Allocatable += node.ReqReply.GetByPath("data.body.memAllocatableBytes").AsNumericDefault(0)
+
 				nodeName, ok := node.ReqReply.GetByPath("data.body.name").AsString()
 				if !ok {
 					le.Warnf(logCtx, "buildLinks: cant get nodeName from node object: %v", nodeID)
@@ -101,6 +124,11 @@ func buildLinks(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProc
 
 		for podID, pod := range pods {
 			if pod.ReqError == nil {
+				res.CPU.Limits += pod.ReqReply.GetByPath("data.body.cpuLimitsMilli").AsNumericDefault(0)
+				res.CPU.Requests += pod.ReqReply.GetByPath("data.body.cpuRequestsMilli").AsNumericDefault(0)
+				res.Memory.Limits += pod.ReqReply.GetByPath("data.body.memLimitsBytes").AsNumericDefault(0)
+				res.Memory.Requests += pod.ReqReply.GetByPath("data.body.memRequestsBytes").AsNumericDefault(0)
+
 				nodeName, ok := pod.ReqReply.GetByPath("data.body.nodeName").AsString()
 				if ok {
 					nodeID, ok := nodesNameMap[nodeName]
@@ -148,6 +176,9 @@ func buildLinks(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProc
 				}
 			}
 		}
+		clusterBody := easyjson.NewJSONObject()
+		clusterBody.SetByPath("resources", easyjson.NewJSON(res))
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, clusterBody, false))
 	}
 }
 
