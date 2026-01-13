@@ -101,7 +101,7 @@ func sshRun(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcesso
 	}
 
 	// Best-effort link to corresponding server object if it exists.
-	hostID := util.HostIDFromIP(ip)
+	hostID := util.GetSafeName(ip)
 	_ = dbc.CMDB.ObjectsLinkUpdate(hostID, resultUUID, nil, easyjson.NewJSONObject(), false, "ssh_action")
 }
 

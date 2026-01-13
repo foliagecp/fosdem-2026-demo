@@ -105,7 +105,7 @@ func reconcileLshwGeneric(dbc db.DBSyncClient, parentUUID, parentType string, ra
 }
 
 func ensureSNObject(dbc db.DBSyncClient, parentUUID, serial string) {
-	uuid := fmt.Sprintf("%s__sn", parentUUID)
+	uuid := getSerialNumberUUID(parentUUID)
 	data := easyjson.NewJSONObject()
 	data.SetByPath("summary.serial", easyjson.NewJSON(serial))
 	_ = dbc.CMDB.ObjectUpdate(uuid, data, false, types.TYPE_FOLIAGE_ADAPTER_SN)
@@ -113,7 +113,7 @@ func ensureSNObject(dbc db.DBSyncClient, parentUUID, serial string) {
 }
 
 func ensureCPUObject(dbc db.DBSyncClient, parentUUID string, cpu easyjson.JSON) {
-	uuid := fmt.Sprintf("%s__cpu0", parentUUID)
+	uuid := getCpuUUID(parentUUID)
 	data := easyjson.NewJSONObject()
 	data.SetByPath("sources.lshw", cpu)
 	if vendor := strings.TrimSpace(cpu.GetByPath("vendor").AsStringDefault("")); vendor != "" {
@@ -143,7 +143,7 @@ func ensureCPUObject(dbc db.DBSyncClient, parentUUID string, cpu easyjson.JSON) 
 }
 
 func ensureBIOSObject(dbc db.DBSyncClient, parentUUID string, fw easyjson.JSON) {
-	uuid := fmt.Sprintf("%s__bios", parentUUID)
+	uuid := getBiosUUID(parentUUID)
 	data := easyjson.NewJSONObject()
 	data.SetByPath("sources.lshw", fw)
 	if vendor := strings.TrimSpace(fw.GetByPath("vendor").AsStringDefault("")); vendor != "" {
@@ -160,7 +160,7 @@ func ensureBIOSObject(dbc db.DBSyncClient, parentUUID string, fw easyjson.JSON) 
 }
 
 func ensureDiskObject(dbc db.DBSyncClient, parentUUID string, idx int, d easyjson.JSON) {
-	uuid := fmt.Sprintf("%s__disk_%d", parentUUID, idx)
+	uuid := getDiskUUID(parentUUID, idx)
 	data := easyjson.NewJSONObject()
 	data.SetByPath("sources.lshw", d)
 	if prod := strings.TrimSpace(d.GetByPath("product").AsStringDefault("")); prod != "" {
@@ -180,7 +180,7 @@ func ensureDiskObject(dbc db.DBSyncClient, parentUUID string, idx int, d easyjso
 }
 
 func ensureRAMObject(dbc db.DBSyncClient, parentUUID string, idx int, r easyjson.JSON) {
-	uuid := fmt.Sprintf("%s__ram_%d", parentUUID, idx)
+	uuid := getRamUUID(parentUUID, idx)
 	data := easyjson.NewJSONObject()
 	data.SetByPath("sources.lshw", r)
 	if prod := strings.TrimSpace(r.GetByPath("product").AsStringDefault("")); prod != "" {
@@ -200,7 +200,7 @@ func ensureRAMObject(dbc db.DBSyncClient, parentUUID string, idx int, r easyjson
 }
 
 func ensureNICObject(dbc db.DBSyncClient, parentUUID string, idx int, nic easyjson.JSON) {
-	uuid := fmt.Sprintf("%s__nic_%d", parentUUID, idx)
+	uuid := getNicUUID(parentUUID, idx)
 	data := easyjson.NewJSONObject()
 	data.SetByPath("sources.lshw", nic)
 	if prod := strings.TrimSpace(nic.GetByPath("product").AsStringDefault("")); prod != "" {

@@ -6,7 +6,6 @@ import (
 
 	easyjson "github.com/foliagecp/easyjson"
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/types"
-	"github.com/foliagecp/fosdem-2026-demo/m1/common/util"
 	"github.com/foliagecp/sdk/clients/go/db"
 	lg "github.com/foliagecp/sdk/statefun/logger"
 )
@@ -14,7 +13,11 @@ import (
 // reconcileVagrantGlobalStatus creates/updates VM objects based on raw `vagrant global-status` output.
 //
 // Expected JSON shape (simplified for demo):
-//   {"vms":[{"id":"...","name":"...","state":"running","ip":"192.168..."}, ...]}
+//
+//	{
+//	  "metadata":{"machine_count":N},
+//	  "vms":[{"id":"...","provider":"...","home":"...","name":"...","state":"..."}]
+//	}
 func reconcileVagrantGlobalStatus(dbc db.DBSyncClient, hypUUID, hostID string, raw easyjson.JSON) {
 	var arr []interface{}
 	if raw.IsObject() {
@@ -42,14 +45,7 @@ func reconcileVagrantGlobalStatus(dbc db.DBSyncClient, hypUUID, hostID string, r
 	desired := map[string]easyjson.JSON{}
 	for _, item := range arr {
 		vm := easyjson.NewJSON(item)
-		ip := strings.TrimSpace(vm.GetByPath("ip").AsStringDefault(""))
-		if ip == "" {
-			ip = strings.TrimSpace(vm.GetByPath("address").AsStringDefault(""))
-		}
-		if ip == "" {
-			continue
-		}
-		vmHostID := util.HostIDFromIP(ip)
+		vmHostID := strings.TrimSpace(vm.GetByPath("id").AsStringDefault(""))
 		vmUUID := ensureVM(dbc, vmHostID)
 		desired[vmUUID] = vm
 	}
