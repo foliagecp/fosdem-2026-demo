@@ -173,6 +173,35 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 					memLim += ml.Value()
 				}
 			}
+			if initContainers := resource.Spec.InitContainers; len(initContainers) > 0 {
+				var initCPUReq, initMemReq, initCPULim, initMemLim int64
+				for _, initContainer := range initContainers {
+					if cr := initContainer.Resources.Requests.Cpu(); cr != nil {
+						if value := cr.MilliValue(); value > initCPUReq {
+							initCPUReq = value
+						}
+					}
+					if mr := initContainer.Resources.Requests.Memory(); mr != nil {
+						if value := mr.Value(); value > initMemReq {
+							initMemReq = value
+						}
+					}
+					if cl := initContainer.Resources.Limits.Cpu(); cl != nil {
+						if value := cl.MilliValue(); value > initCPULim {
+							initCPULim = value
+						}
+					}
+					if ml := initContainer.Resources.Limits.Memory(); ml != nil {
+						if value := ml.Value(); value > initMemLim {
+							initMemLim = value
+						}
+					}
+				}
+				cpuReq += initCPUReq
+				memReq += initMemReq
+				cpuLim += initCPULim
+				memLim += initMemLim
+			}
 			m2Object.SetByPath("cpuRequestsMilli", easyjson.NewJSON(cpuReq))
 			m2Object.SetByPath("cpuLimitsMilli", easyjson.NewJSON(cpuLim))
 			m2Object.SetByPath("memRequestsBytes", easyjson.NewJSON(memReq))
@@ -184,6 +213,7 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 					m2Object.SetByPath("ownerKind", easyjson.NewJSON(ownerReferences[0].Kind))
 					m2Object.SetByPath("ownerUID", easyjson.NewJSON(string(ownerReferences[0].UID)))
 					m2Object.SetByPath("ownerName", easyjson.NewJSON(ownerReferences[0].Name))
+					break
 				}
 			}
 		}
@@ -211,6 +241,7 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 					m2Object.SetByPath("ownerKind", easyjson.NewJSON(ownerReferences[0].Kind))
 					m2Object.SetByPath("ownerUID", easyjson.NewJSON(string(ownerReferences[0].UID)))
 					m2Object.SetByPath("ownerName", easyjson.NewJSON(ownerReferences[0].Name))
+					break
 				}
 			}
 		}
