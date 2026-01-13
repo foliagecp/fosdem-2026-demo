@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	easyjson "github.com/foliagecp/easyjson"
@@ -14,7 +13,8 @@ import (
 )
 
 // Command identifiers used across agents, connectors and this adapter.
-const (	cmdLsmod               = "lsmod"
+const (
+	cmdLsmod               = "lsmod"
 	cmdVagrantGlobalStatus = "vagrant_global_status"
 	cmdLshw                = "lshw"
 )
@@ -96,7 +96,7 @@ func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContex
 		case cmdVagrantGlobalStatus:
 			// Only consider Vagrant VMs for KVM hosts. The hypervisor object must be created
 			// by a prior `lsmod` ingestion that detected KVM.
-			probeHypUUID := fmt.Sprintf("%s__kvm", strings.TrimSpace(hostID))
+			probeHypUUID := getHypervisorUUID(hostID)
 			if _, err := dbc.CMDB.ObjectRead(probeHypUUID); err != nil {
 				lg.Logf(lg.InfoLevel, "infra.push_update: skipping vagrant_global_status (no kvm hypervisor detected yet) host_id=%s", hostID)
 				break
@@ -122,14 +122,13 @@ func ensureInfraLink(dbc db.DBSyncClient, childUUID, linkName string) {
 // ensureServer creates/updates the server node for a given host_id.
 // host_id is derived from IP and is used as the server UUID to keep object ids readable.
 func ensureServer(dbc db.DBSyncClient, hostID string) string {
-	hostID = strings.TrimSpace(hostID)
+	hostID = util.GetSafeName(hostID)
 	serverUUID := hostID
 	if serverUUID == "" {
 		serverUUID = "unknown_host"
 	}
 	data := easyjson.NewJSONObject()
 	data.SetByPath("identifiers.host_id", easyjson.NewJSON(hostID))
-	data.SetByPath("summary.ip", easyjson.NewJSON(util.IPFromHostID(hostID)))
 	_ = dbc.CMDB.ObjectUpdate(serverUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_SERVER)
 	ensureInfraLink(dbc, serverUUID, hostID)
 	return serverUUID
@@ -137,8 +136,8 @@ func ensureServer(dbc db.DBSyncClient, hostID string) string {
 
 // ensureHypervisor creates/updates a hypervisor node for a given server.
 func ensureHypervisor(dbc db.DBSyncClient, serverUUID, hostID string) string {
-	hostID = strings.TrimSpace(hostID)
-	hypUUID := fmt.Sprintf("%s__kvm", hostID)
+	hostID = util.GetSafeName(hostID)
+	hypUUID := getHypervisorUUID(hostID)
 	data := easyjson.NewJSONObject()
 	data.SetByPath("summary.kind", easyjson.NewJSON("KVM"))
 	data.SetByPath("identifiers.host_id", easyjson.NewJSON(hostID))
@@ -153,14 +152,10 @@ func ensureHypervisor(dbc db.DBSyncClient, serverUUID, hostID string) string {
 
 // ensureVM creates/updates a VM node for a given host_id (derived from VM IP).
 func ensureVM(dbc db.DBSyncClient, hostID string) string {
-	hostID = strings.TrimSpace(hostID)
-	vmUUID := hostID
-	if vmUUID == "" {
-		vmUUID = "unknown_vm"
-	}
+	hostID = util.GetSafeName(hostID)
+	vmUUID := getVirtualMachineUUID(hostID)
 	data := easyjson.NewJSONObject()
 	data.SetByPath("identifiers.host_id", easyjson.NewJSON(hostID))
-	data.SetByPath("summary.ip", easyjson.NewJSON(util.IPFromHostID(hostID)))
 	_ = dbc.CMDB.ObjectUpdate(vmUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE)
 	ensureInfraLink(dbc, vmUUID, hostID)
 	return vmUUID

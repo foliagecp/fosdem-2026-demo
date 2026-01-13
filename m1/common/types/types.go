@@ -8,8 +8,6 @@ const (
 	// ----------------------------------------------------
 
 	// Connector sources (by command / data source) -------
-	TYPE_FOLIAGE_CONNECTOR_INFRASTRUCTURE        = "foliage-connector-infrastructure"
-	TYPE_FOLIAGE_CONNECTOR_SERVERS               = "foliage-connector-servers"
 	TYPE_FOLIAGE_CONNECTOR_LSMOD                 = "foliage-connector-lsmod"
 	TYPE_FOLIAGE_CONNECTOR_VAGRANT_GLOBAL_STATUS = "foliage-connector-vagrant_global_status"
 	TYPE_FOLIAGE_CONNECTOR_LSHW                  = "foliage-connector-lshw"
@@ -23,7 +21,6 @@ const (
 
 	// Component types derived from lshw ------------------
 	TYPE_FOLIAGE_ADAPTER_CPU             = "foliage-adapter-cpu"
-	TYPE_FOLIAGE_ADAPTER_SOCKET          = "foliage-adapter-socket"
 	TYPE_FOLIAGE_ADAPTER_RAM_STICK       = "foliage-adapter-ram_stick"
 	TYPE_FOLIAGE_ADAPTER_DISK            = "foliage-adapter-disk"
 	TYPE_FOLIAGE_ADAPTER_BIOS            = "foliage-adapter-bios"

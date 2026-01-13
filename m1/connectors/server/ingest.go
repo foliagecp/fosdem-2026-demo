@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	easyjson "github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/m1/common/util"
 	"github.com/foliagecp/sdk/clients/go/db"
 	lg "github.com/foliagecp/sdk/statefun/logger"
 	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
@@ -15,14 +16,15 @@ import (
 // sequential processing per connector. Therefore, host identity must be provided in the payload.
 //
 // Expected payload shape:
-//   {"ip":"<host_ip>", "data": <command_stdout_json>}
+//
+//	{"id":"<host_id>", "data": <command_stdout_json>}
 func ingestSource(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient, command string, sourceType string) {
-	hostIP, ok := ctx.Payload.GetByPath("ip").AsString()
-	if !ok || strings.TrimSpace(hostIP) == "" {
-		lg.Logf(lg.ErrorLevel, "%s.push_update: missing ip in payload", command)
+	hostID, ok := ctx.Payload.GetByPath("id").AsString()
+	if !ok || strings.TrimSpace(hostID) == "" {
+		lg.Logf(lg.ErrorLevel, "%s.push_update: missing id in payload", command)
 		return
 	}
-	hostID := strings.ReplaceAll(strings.TrimSpace(hostIP), ".", "_")
+	hostID = util.GetSafeName(hostID)
 
 	data := ctx.Payload.GetByPath("data")
 	newData := data.NormalizedClone()

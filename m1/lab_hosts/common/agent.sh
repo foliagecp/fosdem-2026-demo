@@ -21,7 +21,10 @@ set -euo pipefail
 log() { echo "[$(date -Iseconds)] [lab-agent] $*" >&2; }
 
 : "${FO_DOMAIN:?FO_DOMAIN is required}"
-: "${HOST_IP:?HOST_IP is required}"
+if command -v ip >/dev/null 2>&1; then
+  HOST_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}')
+fi
+: "${HOST_IP:=$(hostname -I 2>/dev/null | awk '{print $1}')}"
 : "${NATS_HOST:=nats}"
 : "${NATS_PORT:=4222}"
 : "${NATS_USER:=nats}"
@@ -29,12 +32,13 @@ log() { echo "[$(date -Iseconds)] [lab-agent] $*" >&2; }
 : "${INTERVAL_SEC:=10}"
 : "${VERBOSE:=0}"
 
-: "${CN_SERVER_ID:?CN_SERVER_ID is required}"
-: "${CN_HYPERVISOR_ID:?CN_HYPERVISOR_ID is required}"
-: "${CN_VIRTUAL_MACHINE_ID:?CN_VIRTUAL_MACHINE_ID is required}"
+: "${CN_SERVER_ID:=cn_server}"
+: "${CN_HYPERVISOR_ID:=cn_hypervisor}"
+: "${CN_VIRTUAL_MACHINE_ID:=cn_virtual_machine}"
 
 : "${PUSH_LSHW_SERVER_FN:?PUSH_LSHW_SERVER_FN is required}"
 : "${PUSH_LSMOD_FN:?PUSH_LSMOD_FN is required}"
+: "${PUSH_LSHW_VM_FN:?PUSH_LSHW_VM_FN is required}"
 : "${PUSH_VAGRANT_GLOBAL_STATUS_FN:?PUSH_VAGRANT_GLOBAL_STATUS_FN is required}"
 
 signal_subject() {
@@ -46,7 +50,7 @@ signal_subject() {
 nats_pub_payload() {
   local subject="$1"
   local raw_json="$2"
-  local ip="$3"
+  local id="$3"
 
   if ! printf '%s' "$raw_json" | jq -e . >/dev/null 2>&1; then
     log "invalid JSON, skipping publish to $subject"
@@ -54,7 +58,7 @@ nats_pub_payload() {
   fi
 
   local payload msg len
-  payload="$(printf '%s' "$raw_json" | tr -d '\r' | jq -c --arg ip "$ip" '{ip: $ip, data: .}')"
+  payload="$(printf '%s' "$raw_json" | tr -d '\r' | jq -c --arg id "$id" '{id: $id, data: .}')"
   msg="$(printf '%s' "$payload" | jq -c '{payload: .}')"
   len="$(printf '%s' "$msg" | wc -c | tr -d ' ')"
 
@@ -127,10 +131,10 @@ publish_json_to_connector() {
   local fn_typename="$1"
   local vertex_id="$2"
   local json_payload="$3"
-  local ip="$4"
+  local id="$4"
   local subject
   subject="$(signal_subject "$fn_typename" "$vertex_id")"
-  nats_pub_payload "$subject" "$json_payload" "$ip" || true
+  nats_pub_payload "$subject" "$json_payload" "$id" || true
 }
 
 push_lsmod() {
@@ -170,9 +174,7 @@ push_lshw_vms() {
       continue
     fi
     lshw="$(/opt/commands/lshw_vm_cmd.sh "$vm_id" 2>/dev/null || echo '{}')"
-    # Wrap VM lshw to keep a single connector for command (2) across server and VMs.
-    wrapper="$(printf '%s' "$lshw" | jq -c --arg vm_id "$vm_id" --arg vm_name "$vm_name" '{vm_id:$vm_id, vm_name:$vm_name, lshw:.}')"
-    publish_json_to_connector "$PUSH_LSHW_SERVER_FN" "$CN_SERVER_ID" "$wrapper" "$HOST_IP"
+    publish_json_to_connector "$PUSH_LSHW_VM_FN" "$CN_VIRTUAL_MACHINE_ID" "$lshw" "$vm_id"
   done
 }
 

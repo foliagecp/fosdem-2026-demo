@@ -14,8 +14,8 @@ RUN mkdir -p /var/run/sshd && \
     sed -i 's/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
 
 COPY ./m1/lab_hosts/host01/data /opt/data
-COPY ./m1/lab_hosts/host01/commands /opt/commands
-COPY ./m1/lab_hosts/host01/scripts /opt/scripts
+COPY ./m1/lab_hosts/common/commands /opt/commands
+COPY ./m1/lab_hosts/common/scripts /opt/scripts
 
 COPY ./m1/lab_hosts/common/agent.sh /opt/agent/agent.sh
 COPY ./m1/lab_hosts/common/entrypoint.sh /opt/entrypoint.sh
