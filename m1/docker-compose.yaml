@@ -1,0 +1,174 @@
+version: "3.8"
+
+services:
+  nats:
+    image: nats:latest
+    command: ["-c", "/etc/nats/nats.conf"]
+    volumes:
+      - ./nats.conf:/etc/nats/nats.conf:ro
+      - nats_data:/data
+    ports:
+      - "4222:4222"
+      - "6222:6222"
+      - "7422:7422"
+      - "8222:8222"
+      # NATS websocket (for browser-based UIs / tools)
+      - "10443:443"
+    networks:
+      m1net:
+        ipv4_address: 192.168.157.2
+
+  cmd:
+    build:
+      context: ..
+      dockerfile: ./m1/cmd/Dockerfile
+    restart: always
+    command: /usr/bin/runtime -ll 6
+    env_file:
+      - ./cmd/.env
+    depends_on:
+      - nats
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://cmd:9000/health"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "9000:9000"
+    networks:
+      m1net:
+        ipv4_address: 192.168.157.3
+
+  cn_server:
+    build:
+      context: ..
+      dockerfile: ./m1/connectors/server/Dockerfile
+    restart: always
+    command: /usr/bin/runtime -ll 6
+    env_file:
+      - ./connectors/server/.env
+    depends_on:
+      cmd:
+        condition: service_healthy
+    networks:
+      - m1net
+
+  cn_hypervisor:
+    build:
+      context: ..
+      dockerfile: ./m1/connectors/hypervisor/Dockerfile
+    restart: always
+    command: /usr/bin/runtime -ll 6
+    env_file:
+      - ./connectors/hypervisor/.env
+    depends_on:
+      cmd:
+        condition: service_healthy
+    networks:
+      - m1net
+
+  cn_virtual_machine:
+    build:
+      context: ..
+      dockerfile: ./m1/connectors/virtual_machine/Dockerfile
+    restart: always
+    command: /usr/bin/runtime -ll 6
+    env_file:
+      - ./connectors/virtual_machine/.env
+    depends_on:
+      cmd:
+        condition: service_healthy
+    networks:
+      - m1net
+
+  ad_infra:
+    build:
+      context: ..
+      dockerfile: ./m1/adapters/infra/Dockerfile
+    restart: always
+    command: /usr/bin/runtime -ll 6
+    env_file:
+      - ./adapters/infra/.env
+    depends_on:
+      cmd:
+        condition: service_healthy
+      cn_server:
+        condition: service_started
+      cn_hypervisor:
+        condition: service_started
+      cn_virtual_machine:
+        condition: service_started
+    networks:
+      - m1net
+
+  lab_host01:
+    build:
+      context: ..
+      dockerfile: ./m1/lab_hosts/host01/Dockerfile
+    environment:
+      NATS_HOST: nats
+      NATS_PORT: 4222
+      NATS_USER: nats
+      NATS_PASS: foliage
+      FO_DOMAIN: m1
+      VERBOSE: "1"
+      INTERVAL_SEC: 5
+      PUSH_LSHW_SERVER_FN: function.connector.server.lshw.push_update
+      PUSH_LSMOD_FN: function.connector.hypervisor.lsmod.push_update
+      PUSH_LSHW_VM_FN: function.connector.virtual_machine.lshw.push_update
+      PUSH_VAGRANT_GLOBAL_STATUS_FN: function.connector.virtual_machine.vagrant_global_status.push_update
+    ports:
+      - "2221:22"
+    depends_on:
+      cmd:
+        condition: service_healthy
+      cn_server:
+        condition: service_started
+      cn_hypervisor:
+        condition: service_started
+      cn_virtual_machine:
+        condition: service_started
+    networks:
+      m1net:
+        ipv4_address: 192.168.157.11
+
+  lab_host02:
+    build:
+      context: ..
+      dockerfile: ./m1/lab_hosts/host02/Dockerfile
+    environment:
+      NATS_HOST: nats
+      NATS_PORT: 4222
+      NATS_USER: nats
+      NATS_PASS: foliage
+      FO_DOMAIN: m1
+      VERBOSE: "1"
+      INTERVAL_SEC: 5
+      PUSH_LSHW_SERVER_FN: function.connector.server.lshw.push_update
+      PUSH_LSMOD_FN: function.connector.hypervisor.lsmod.push_update
+      PUSH_LSHW_VM_FN: function.connector.virtual_machine.lshw.push_update
+      PUSH_VAGRANT_GLOBAL_STATUS_FN: function.connector.virtual_machine.vagrant_global_status.push_update
+    ports:
+      - "2222:22"
+    depends_on:
+      cmd:
+        condition: service_healthy
+      cn_server:
+        condition: service_started
+      cn_hypervisor:
+        condition: service_started
+      cn_virtual_machine:
+        condition: service_started
+    networks:
+      m1net:
+        ipv4_address: 192.168.157.12
+
+volumes:
+  nats_data:
+
+networks:
+  m1net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.157.0/24

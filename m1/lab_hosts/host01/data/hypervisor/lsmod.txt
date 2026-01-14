@@ -1,0 +1,107 @@
+Module                  Size  Used by
+xt_tcpudp              16384  2
+veth                   40960  0
+tcp_diag               12288  0
+inet_diag              28672  1 tcp_diag
+nft_reject_inet        12288  1
+nf_reject_ipv4         12288  1 nft_reject_inet
+nf_reject_ipv6         20480  1 nft_reject_inet
+nft_reject             12288  1 nft_reject_inet
+xt_MASQUERADE          16384  3
+ebtable_filter         12288  0
+ebtables               49152  1 ebtable_filter
+ip_set                 61440  0
+ip6table_raw           12288  0
+ip6table_filter        12288  0
+ip6_tables             32768  2 ip6table_filter,ip6table_raw
+iptable_filter         12288  1
+nf_tables             356352  10 nft_reject_inet,nft_reject
+iptable_nat            12288  1
+xt_nat                 12288  2
+nf_nat                 61440  3 xt_nat,iptable_nat,xt_MASQUERADE
+iptable_raw            12288  1
+xt_CT                  16384  1
+nf_conntrack          184320  4 nf_nat,xt_nat,xt_CT,xt_MASQUERADE
+nf_defrag_ipv6         24576  1 nf_conntrack
+nf_defrag_ipv4         12288  1 nf_conntrack
+bonding               245760  0
+tls                   147456  1 bonding
+softdog                16384  2
+sunrpc                786432  1
+binfmt_misc            24576  1
+sch_fq_codel           24576  21
+nfnetlink_log          24576  1
+intel_rapl_msr         20480  0
+intel_rapl_common      49152  1 intel_rapl_msr
+sb_edac                32768  0
+x86_pkg_temp_thermal    16384  0
+intel_powerclamp       24576  0
+coretemp               20480  0
+kvm_intel             458752  34
+ipmi_ssif              45056  0
+kvm                  1363968  29 kvm_intel
+irqbypass              12288  1 kvm
+polyval_clmulni        12288  0
+polyval_generic        12288  1 polyval_clmulni
+ghash_clmulni_intel    16384  0
+sha256_ssse3           32768  0
+sha1_ssse3             32768  0
+aesni_intel           118784  0
+crypto_simd            16384  1 aesni_intel
+cryptd                 24576  2 crypto_simd,ghash_clmulni_intel
+rapl                   20480  0
+intel_cstate           20480  0
+pcspkr                 12288  0
+mgag200                69632  0
+acpi_ipmi              20480  0
+mei_me                 53248  0
+mei                   167936  1 mei_me
+ipmi_si                86016  1
+ipmi_devintf           16384  0
+ipmi_msghandler        86016  4 ipmi_devintf,ipmi_si,acpi_ipmi,ipmi_ssif
+joydev                 28672  0
+input_leds             12288  0
+mac_hid                12288  0
+zfs                  6324224  6
+spl                   147456  1 zfs
+vhost_net              32768  2
+vhost                  61440  1 vhost_net
+vhost_iotlb            16384  1 vhost
+tap                    28672  1 vhost_net
+efi_pstore             12288  0
+nfnetlink              20480  5 nf_tables,ip_set,nfnetlink_log
+dmi_sysfs              24576  0
+ip_tables              32768  3 iptable_filter,iptable_raw,iptable_nat
+x_tables               57344  12 ebtables,ip6table_filter,ip6table_raw,iptable_filter,xt_tcpudp,xt_nat,ip6_tables,xt_CT,iptable_raw,ip_tables,iptable_nat,xt_MASQUERADE
+autofs4                57344  3
+btrfs                1978368  0
+blake2b_generic        24576  0
+xor                    20480  1 btrfs
+raid6_pq              122880  1 btrfs
+dm_thin_pool           90112  5
+dm_persistent_data    114688  1 dm_thin_pool
+dm_bio_prison          24576  1 dm_thin_pool
+dm_bufio               53248  1 dm_persistent_data
+hid_generic            12288  0
+usbmouse               12288  0
+usbkbd                 12288  0
+usbhid                 69632  0
+hid                   253952  2 usbhid,hid_generic
+isci                  184320  0
+psmouse               208896  0
+serio_raw              20480  0
+i2c_i801               36864  0
+igb                   303104  0
+ahci                   49152  5
+ehci_pci               16384  0
+libsas                122880  1 isci
+i2c_mux                16384  1 i2c_i801
+libahci                53248  1 ahci
+lpc_ich                28672  0
+i2c_smbus              20480  1 i2c_i801
+ehci_hcd               98304  1 ehci_pci
+ioatdma                73728  0
+scsi_transport_sas     53248  2 isci,libsas
+i2c_algo_bit           16384  2 igb,mgag200
+dca                    16384  2 igb,ioatdma
+wmi                    28672  0
