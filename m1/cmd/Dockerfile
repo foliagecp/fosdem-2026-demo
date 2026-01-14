@@ -1,4 +1,4 @@
-FROM golang:1.21.1 AS builder
+FROM golang:1.25 AS builder
 
 WORKDIR /usr/src/app
 
