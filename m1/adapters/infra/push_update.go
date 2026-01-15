@@ -103,7 +103,7 @@ func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContex
 			}
 			serverUUID := ensureServer(dbc, hostID)
 			hypUUID := ensureHypervisor(dbc, serverUUID, hostID)
-			reconcileVagrantGlobalStatus(dbc, hypUUID, hostID, raw)
+			reconcileVagrantGlobalStatus(dbc, hypUUID, hostID, raw, ctx.Domain)
 		case cmdLshw:
 			vmUUID := ensureVM(dbc, hostID)
 			reconcileLshwVM(dbc, vmUUID, raw)
