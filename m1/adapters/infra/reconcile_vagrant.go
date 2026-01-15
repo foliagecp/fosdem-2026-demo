@@ -8,6 +8,7 @@ import (
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	lg "github.com/foliagecp/sdk/statefun/logger"
+	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
 )
 
 // reconcileVagrantGlobalStatus creates/updates VM objects based on raw `vagrant global-status` output.
@@ -18,7 +19,7 @@ import (
 //	  "metadata":{"machine_count":N},
 //	  "vms":[{"id":"...","provider":"...","home":"...","name":"...","state":"..."}]
 //	}
-func reconcileVagrantGlobalStatus(dbc db.DBSyncClient, hypUUID, hostID string, raw easyjson.JSON) {
+func reconcileVagrantGlobalStatus(dbc db.DBSyncClient, hypUUID, hostID string, raw easyjson.JSON, dm sfPlugins.Domain) {
 	var arr []interface{}
 	if raw.IsObject() {
 		if a, ok := raw.GetByPath("vms").AsArray(); ok {
@@ -31,6 +32,7 @@ func reconcileVagrantGlobalStatus(dbc db.DBSyncClient, hypUUID, hostID string, r
 			arr = a
 		}
 	}
+
 	if arr == nil {
 		lg.Logln(lg.WarnLevel, "infra: vagrant_global_status raw has no vms array")
 		return
@@ -53,8 +55,9 @@ func reconcileVagrantGlobalStatus(dbc db.DBSyncClient, hypUUID, hostID string, r
 	// Delete stale VMs linked under this hypervisor.
 	if uuids, err := dbc.Query.JPGQLCtraQuery(hypUUID, fmt.Sprintf(".*[l:type('%s')]", types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE)); err == nil {
 		for _, u := range uuids {
-			if _, ok := desired[u]; !ok {
-				_ = dbc.CMDB.ObjectDelete(u)
+			uuid := dm.GetObjectIDWithoutDomain(u)
+			if _, ok := desired[uuid]; !ok {
+				_ = dbc.CMDB.ObjectDelete(uuid)
 			}
 		}
 	}
@@ -73,7 +76,7 @@ func reconcileVagrantGlobalStatus(dbc db.DBSyncClient, hypUUID, hostID string, r
 		}
 		_ = dbc.CMDB.ObjectUpdate(vmUUID, upd, false, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE)
 		// Link hypervisor <-> VM.
-		_ = dbc.CMDB.ObjectsLinkUpdate(hypUUID, vmUUID, nil, easyjson.NewJSONObject(), false, vm.GetByPath("name").AsStringDefault("vm"))
+		_ = dbc.CMDB.ObjectsLinkUpdate(hypUUID, vmUUID, nil, easyjson.NewJSONObject(), false, vmUUID)
 		_ = dbc.CMDB.ObjectsLinkUpdate(vmUUID, hypUUID, nil, easyjson.NewJSONObject(), false, "hypervisor")
 	}
 
