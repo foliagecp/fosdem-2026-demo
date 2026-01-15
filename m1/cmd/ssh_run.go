@@ -25,9 +25,23 @@ const (
 //	{
 //	  "target": {"ip": "192.168.157.12", "port": 22},
 //	  "auth": {"user": "demo", "password": "demo"},
-//	  "exec": {"path": "/opt/scripts/fix_lsmod.sh", "args": []},
+//	  "exec": {"path": "/opt/scripts/run_vm.sh", "args": []},
 //	  "result": {"uuid": "optional-fixed-uuid"}
 //	}
+/*
+# NATS IO Example:
+```
+nats -s nats://nats:foliage@nats:4222 pub signal.m1.function.cmd.ssh.run.rt "$(jq -n '
+{
+  "payload": {
+    "target": {"ip": "192.168.157.11", "port": 22},
+    "auth": {"user": "demo", "password": "demo"},
+    "exec": {"path": "/opt/scripts/run_vm.sh", "args": []}
+  }
+}
+')" | jq '.'
+```
+*/
 func sshRun(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
