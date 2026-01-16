@@ -7,7 +7,8 @@ import (
 	"os"
 
 	"github.com/foliagecp/easyjson"
-	"github.com/foliagecp/fosdem-2026-demo/m2"
+	"github.com/foliagecp/fosdem-2026-demo/m2/common/apps"
+	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	"github.com/foliagecp/sdk/statefun"
 	"github.com/foliagecp/sdk/statefun/cache"
@@ -15,10 +16,6 @@ import (
 	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
 	"github.com/foliagecp/sdk/statefun/system"
 	k8s "k8s.io/client-go/kubernetes"
-)
-
-const (
-	runtimeName = "k8s_cn_ad"
 )
 
 var (
@@ -65,17 +62,17 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 
 	createScheme(dbc)
 
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(runtimeName, easyjson.NewJSONObject(), true, m2.CONNECTOR_ADAPTER_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CN_AD_K8S, easyjson.NewJSONObject(), true, types.TYPE_FOLIAGE_APP_CONNECTOR_ADAPTER))
 
-	k8sInfrastructureObjectID := system.GetHashStr(m2.INFRASTRUCTURE_TYPE)
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(k8sInfrastructureObjectID, easyjson.NewJSONObject(), true, m2.INFRASTRUCTURE_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(runtimeName, k8sInfrastructureObjectID, nil, easyjson.NewJSONObject(), true, k8sInfrastructureObjectID))
+	k8sInfrastructureObjectID := system.GetHashStr(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE)
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(k8sInfrastructureObjectID, easyjson.NewJSONObject(), true, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(apps.APP_CN_AD_K8S, k8sInfrastructureObjectID, nil, easyjson.NewJSONObject(), true, k8sInfrastructureObjectID))
 
 	clusterBody := easyjson.NewJSONObject()
 	clusterBody.SetByPath("cluster_name", easyjson.NewJSON(clusterName))
 	clusterBody.SetByPath("cluster_id", easyjson.NewJSON(clusterID))
 
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, clusterBody, true, m2.CLUSTER_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, clusterBody, true, types.TYPE_FOLIAGE_CLUSTER))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(k8sInfrastructureObjectID, clusterID, nil, easyjson.NewJSONObject(), true, clusterID))
 
 	stopCh := make(chan struct{})
@@ -111,7 +108,8 @@ func registerFunctionTypes(runtime *statefun.Runtime) {
 
 func start() {
 	system.GlobalPrometrics = system.NewPrometrics("", ":9901")
-	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, runtimeName).UseJSDomainAsHubDomainName()); err == nil {
+	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, apps.APP_CN_AD_K8S).
+		SetDomainRoutersHandling(false).UseJSDomainAsHubDomainName()); err == nil {
 		registerFunctionTypes(runtime)
 		runtime.RegisterOnAfterStartFunction(onAfterStart, false)
 		if err := runtime.Start(context.TODO(), cache.NewCacheConfig("cn_ad_cache")); err != nil {

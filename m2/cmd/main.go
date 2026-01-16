@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/foliagecp/easyjson"
-	"github.com/foliagecp/fosdem-2026-demo/m2"
+	"github.com/foliagecp/fosdem-2026-demo/m2/common/apps"
+	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	graphCRUD "github.com/foliagecp/sdk/embedded/graph/crud"
 	graphDebug "github.com/foliagecp/sdk/embedded/graph/debug"
@@ -24,43 +25,59 @@ import (
 	uilib "github.com/foliagecp/ui-app-lib"
 )
 
-const (
-	runtimeName = "main"
-)
-
 var (
 	// natsURL - nats server url
 	natsURL = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
 )
 
-func startHealthyState(ctx context.Context) {
+func healthyState(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, "main is healthy")
 	})
 
 	srv := &http.Server{
-		Addr:        ":9000",
-		Handler:     mux,
-		BaseContext: func(_ net.Listener) context.Context { return ctx },
+		Addr:    ":9000",
+		Handler: mux,
 	}
 
+	errCh := make(chan error, 1)
 	go func() {
-		if err := srv.ListenAndServe(); err != nil {
-			lg.GetLogger().Errorf(ctx, "Health server error: %v", err)
-		}
+		// http.ErrServerClosed - normal error during Shutdown
+		errCh <- srv.ListenAndServe()
 	}()
 
-	go func() {
-		<-ctx.Done()
-
+	select {
+	case <-ctx.Done():
+		// give some time for active requests to complete correctly
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			lg.GetLogger().Errorf(ctx, "Health server shutdown failed: %v", err)
+		_ = srv.Shutdown(shutdownCtx) // you can handle the error if it's important
+		return ctx.Err()
+
+	case err := <-errCh:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
 		}
-	}()
+		return err
+	}
+}
+
+func cmdUpdateStatus(runtime *statefun.Runtime) {
+	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
+	if err != nil {
+		lg.Logf(lg.ErrorLevel, "cannot update cmd status: %v", err)
+	}
+
+	t := time.Now()
+
+	data := easyjson.NewJSONObject()
+	data.SetByPath("updated_at.datetime", easyjson.NewJSON(t.Format("2006-01-02 15:04:05 MST")))
+	data.SetByPath("updated_at.nano", easyjson.NewJSON(t.UnixNano()))
+
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CMD, data, false, types.TYPE_FOLIAGE_APP_CMD))
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
@@ -69,10 +86,10 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 		return err
 	}
 
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.TYPE_FOLIAGE_APP_CMD, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(m2.APP_CMD, easyjson.NewJSONObject(), false, m2.TYPE_FOLIAGE_APP_CMD))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_CMD, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CMD, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_APP_CMD))
 
-	startHealthyState(ctx)
+	go healthyState(ctx)
 
 	return nil
 }
@@ -88,10 +105,10 @@ func registerFunctionTypes(runtime *statefun.Runtime) {
 
 func start() {
 	system.GlobalPrometrics = system.NewPrometrics("", ":9901")
-	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, runtimeName).UseJSDomainAsHubDomainName()); err == nil {
+	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, apps.APP_CMD).UseJSDomainAsHubDomainName()); err == nil {
 		registerFunctionTypes(runtime)
 		runtime.RegisterOnAfterStartFunction(onAfterStart, false)
-		if err := runtime.Start(context.TODO(), cache.NewCacheConfig("main_cache")); err != nil {
+		if err := runtime.Start(context.TODO(), cache.NewCacheConfig("graph_cache")); err != nil {
 			lg.Logf(lg.ErrorLevel, "Cannot start due to an error: %s", err)
 		}
 	} else {

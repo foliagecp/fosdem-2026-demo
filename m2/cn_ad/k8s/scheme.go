@@ -2,42 +2,42 @@ package main
 
 import (
 	"github.com/foliagecp/easyjson"
-	"github.com/foliagecp/fosdem-2026-demo/m2"
+	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	"github.com/foliagecp/sdk/statefun/system"
 )
 
 func createScheme(dbc db.DBSyncClient) {
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.CONNECTOR_ADAPTER_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.INFRASTRUCTURE_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.CLUSTER_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.NODE_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.POD_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.DEPLOYMENT_TYPE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(m2.REPLICATION_SET_TYPE, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_CONNECTOR_ADAPTER, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_CLUSTER, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_NODE, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_POD, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_DEPLOYMENT, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_REPLICATION_SET, easyjson.NewJSONObject(), false, true))
 
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CONNECTOR_ADAPTER_TYPE, m2.INFRASTRUCTURE_TYPE, nil, easyjson.NewJSONObject(), false, m2.INFRASTRUCTURE_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_CONNECTOR_ADAPTER, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
 
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.INFRASTRUCTURE_TYPE, m2.CLUSTER_TYPE, nil, easyjson.NewJSONObject(), false, m2.CLUSTER_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.INFRASTRUCTURE_TYPE, m2.NODE_TYPE, nil, easyjson.NewJSONObject(), false, m2.NODE_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.INFRASTRUCTURE_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.INFRASTRUCTURE_TYPE, m2.DEPLOYMENT_TYPE, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.INFRASTRUCTURE_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, types.TYPE_FOLIAGE_CLUSTER, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_CLUSTER))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, types.TYPE_FOLIAGE_NODE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, types.TYPE_FOLIAGE_POD, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, types.TYPE_FOLIAGE_DEPLOYMENT, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_DEPLOYMENT))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, types.TYPE_FOLIAGE_REPLICATION_SET, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_REPLICATION_SET))
 
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.NODE_TYPE, nil, easyjson.NewJSONObject(), false, m2.NODE_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.DEPLOYMENT_TYPE, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.CLUSTER_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_CLUSTER, types.TYPE_FOLIAGE_NODE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_CLUSTER, types.TYPE_FOLIAGE_POD, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_CLUSTER, types.TYPE_FOLIAGE_DEPLOYMENT, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_DEPLOYMENT))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_CLUSTER, types.TYPE_FOLIAGE_REPLICATION_SET, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_REPLICATION_SET))
 
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.NODE_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.POD_TYPE, m2.NODE_TYPE, nil, easyjson.NewJSONObject(), false, m2.NODE_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_NODE, types.TYPE_FOLIAGE_POD, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_POD, types.TYPE_FOLIAGE_NODE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
 
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.DEPLOYMENT_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.POD_TYPE, m2.DEPLOYMENT_TYPE, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_DEPLOYMENT, types.TYPE_FOLIAGE_POD, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_POD, types.TYPE_FOLIAGE_DEPLOYMENT, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_DEPLOYMENT))
 
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.DEPLOYMENT_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.REPLICATION_SET_TYPE, m2.DEPLOYMENT_TYPE, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_DEPLOYMENT, types.TYPE_FOLIAGE_REPLICATION_SET, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_REPLICATION_SET))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_REPLICATION_SET, types.TYPE_FOLIAGE_DEPLOYMENT, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_DEPLOYMENT))
 
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.REPLICATION_SET_TYPE, m2.POD_TYPE, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(m2.POD_TYPE, m2.REPLICATION_SET_TYPE, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_REPLICATION_SET, types.TYPE_FOLIAGE_POD, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_POD, types.TYPE_FOLIAGE_REPLICATION_SET, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_REPLICATION_SET))
 }

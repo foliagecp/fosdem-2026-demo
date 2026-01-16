@@ -6,8 +6,7 @@ import (
 	"time"
 
 	"github.com/foliagecp/easyjson"
-	"github.com/foliagecp/fosdem-2026-demo/m2"
-	"github.com/foliagecp/fosdem-2026-demo/m3/common/types"
+	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	"github.com/foliagecp/sdk/statefun"
 	lg "github.com/foliagecp/sdk/statefun/logger"
@@ -145,7 +144,7 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 		m2Object.SetByPath("memAllocatableBytes", easyjson.NewJSON(resource.Status.Allocatable.Memory().Value()))
 		m2Object.SetByPath("memCapacityBytes", easyjson.NewJSON(resource.Status.Capacity.Memory().Value()))
 
-		typeName = m2.NODE_TYPE
+		typeName = types.TYPE_FOLIAGE_NODE
 
 	case *corev1.Pod:
 		objectID = string(resource.UID)
@@ -218,7 +217,7 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 			}
 		}
 
-		typeName = m2.POD_TYPE
+		typeName = types.TYPE_FOLIAGE_POD
 
 	case *appsv1.Deployment:
 		objectID = string(resource.UID)
@@ -228,7 +227,7 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 		if containers := resource.Spec.Template.Spec.Containers; len(containers) > 0 {
 			m2Object.SetByPath("containersImage", easyjson.NewJSON(containers[0].Image))
 		}
-		typeName = m2.DEPLOYMENT_TYPE
+		typeName = types.TYPE_FOLIAGE_DEPLOYMENT
 
 	case *appsv1.ReplicaSet:
 		objectID = string(resource.UID)
@@ -246,7 +245,7 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 			}
 		}
 
-		typeName = m2.REPLICATION_SET_TYPE
+		typeName = types.TYPE_FOLIAGE_REPLICATION_SET
 
 	default:
 		lg.GetLogger().Warnf(context.TODO(), "No metadata mapping for type: %T", obj)
@@ -260,7 +259,7 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 	switch eventType {
 	case DELETE:
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectDelete(objID))
-		if typeName == m2.POD_TYPE || typeName == m2.DEPLOYMENT_TYPE {
+		if typeName == types.TYPE_FOLIAGE_POD || typeName == types.TYPE_FOLIAGE_DEPLOYMENT {
 			body.SetByPath("type", easyjson.NewJSON(typeName))
 			body.SetByPath("operation", easyjson.NewJSON("delete"))
 			w.notifyAdapters(&body)
@@ -272,7 +271,7 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 		}
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.k8sInfrastructureID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
-		if typeName == m2.POD_TYPE || typeName == m2.DEPLOYMENT_TYPE {
+		if typeName == types.TYPE_FOLIAGE_POD || typeName == types.TYPE_FOLIAGE_DEPLOYMENT {
 			body.SetByPath("type", easyjson.NewJSON(typeName))
 			body.SetByPath("operation", easyjson.NewJSON("add"))
 			w.notifyAdapters(&body)

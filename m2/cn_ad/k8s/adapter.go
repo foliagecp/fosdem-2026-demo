@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/foliagecp/easyjson"
-	"github.com/foliagecp/fosdem-2026-demo/m2"
+	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	lg "github.com/foliagecp/sdk/statefun/logger"
 	sfMediators "github.com/foliagecp/sdk/statefun/mediator"
@@ -45,7 +45,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 		le.Errorf(logCtx, "buildLinks: cannot create db client: %v", err)
 		return
 	}
-	clusters, err := dbc.Query.JPGQLCtraQuery(m2.CLUSTER_TYPE, ".*[l:type('__object')]")
+	clusters, err := dbc.Query.JPGQLCtraQuery(types.TYPE_FOLIAGE_CLUSTER, ".*[l:type('__object')]")
 	if err != nil {
 		le.Errorf(logCtx, "buildLinks: cannot query clusters: %v", err)
 		return
@@ -56,7 +56,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 
 		nodes, err := ctx.ObjectRequest(
 			sfPlugins.AutoRequestSelect,
-			sfPlugins.NewLinkQuery(m2.NODE_TYPE),
+			sfPlugins.NewLinkQuery(types.TYPE_FOLIAGE_NODE),
 			foliageReadFunc,
 			clusterID,
 			nil,
@@ -86,7 +86,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 
 		pods, err := ctx.ObjectRequest(
 			sfPlugins.AutoRequestSelect,
-			sfPlugins.NewLinkQuery(m2.POD_TYPE),
+			sfPlugins.NewLinkQuery(types.TYPE_FOLIAGE_POD),
 			foliageReadFunc,
 			clusterID,
 			nil,
@@ -99,7 +99,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 
 		deployments, err := ctx.ObjectRequest(
 			sfPlugins.AutoRequestSelect,
-			sfPlugins.NewLinkQuery(m2.DEPLOYMENT_TYPE),
+			sfPlugins.NewLinkQuery(types.TYPE_FOLIAGE_DEPLOYMENT),
 			foliageReadFunc,
 			clusterID,
 			nil,
@@ -111,7 +111,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 		}
 		replicasets, err := ctx.ObjectRequest(
 			sfPlugins.AutoRequestSelect,
-			sfPlugins.NewLinkQuery(m2.REPLICATION_SET_TYPE),
+			sfPlugins.NewLinkQuery(types.TYPE_FOLIAGE_REPLICATION_SET),
 			foliageReadFunc,
 			clusterID,
 			nil,
@@ -133,8 +133,8 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				if ok {
 					nodeID, ok := nodesNameMap[nodeName]
 					if ok {
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, nodeID, nil, easyjson.NewJSONObject(), false, m2.NODE_TYPE))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, nodeID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
 					}
 				}
 				ownerKind, ok := pod.ReqReply.GetByPath("data.body.ownerKind").AsString()
@@ -150,13 +150,13 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				switch ownerKind {
 				case deploymentKind:
 					if _, ok = deployments[ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false)]; ok {
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_DEPLOYMENT))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
 					}
 				case replicaSetKind:
 					if _, ok = replicasets[ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false)]; ok {
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, m2.POD_TYPE))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_REPLICATION_SET))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
 					}
 				case daemonSetKind:
 				case nodeKind:
@@ -169,8 +169,8 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				if ok {
 					for deploymentID := range deployments {
 						if ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false) == deploymentID {
-							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(replicasetID, deploymentID, nil, easyjson.NewJSONObject(), false, m2.DEPLOYMENT_TYPE))
-							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(deploymentID, replicasetID, nil, easyjson.NewJSONObject(), false, m2.REPLICATION_SET_TYPE))
+							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(replicasetID, deploymentID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_DEPLOYMENT))
+							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(deploymentID, replicasetID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_REPLICATION_SET))
 						}
 					}
 				}

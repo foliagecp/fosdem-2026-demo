@@ -1,14 +1,14 @@
 services:
   nats:
     image: nats:latest
-    command: -c /etc/nats/nats.conf
+    command: -c /etc/nats.conf
     ports:
       - "4222:4222"
       - "6222:6222"
       - "8222:8222"
       - "443:443"
     volumes:
-       - ./configs/nats/:/etc/nats/
+       - ./nats.conf:/etc/nats.conf
 
   io:
     image: natsio/nats-box:latest
@@ -22,7 +22,7 @@ services:
     image: foliage-demo/cmd:latest
     restart: always
     command: /usr/bin/runtime -ll 6
-    env_file: ./configs/.env
+    env_file: cmd/.env
     depends_on:
       - nats
     build:
@@ -41,16 +41,16 @@ services:
         max-file: "5"
     stop_grace_period: 1m
 
-  cn-ad_m2_k8s:
+  cn-ad_k8s:
     image: foliage-demo/cn-ad-k8s:latest
     restart: always
     command: /usr/bin/runtime -ll 6
-    env_file: ./configs/.env
+    env_file: cn_ad/k8s/.env
     depends_on:
       cmd:
         condition: service_healthy
     volumes:
-      - ./configs/:/configs/
+      - ./kubeconfig:/kubeconfig:ro
       - ./dumps/:/dumps/
     build:
       context: ..
