@@ -1,0 +1,24 @@
+name: Deploy m2
+
+on:
+  push:
+    branches: [ dev ]
+    paths:
+      - 'm2/**'
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, m2]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stop and cleanup
+        run: |
+          docker compose -p m2 -f m2/docker-compose.yaml down -v --remove-orphans
+
+      - name: Deploy m2
+        run: |
+          cd m2
+          docker compose up -d --build
+

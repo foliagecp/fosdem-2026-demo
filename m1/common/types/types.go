@@ -31,4 +31,8 @@ const (
 	// Cmd types ------------------------------------------
 	TYPE_FOLIAGE_CMD_ACTION_RESULT = "foliage-cmd-action_result"
 	// ----------------------------------------------------
+
+	// Types from M2 (K8s objects) ------------------------
+	TYPE_FOLIAGE_NODE = "foliage-cn_ad-k8s-node"
+	// ----------------------------------------------------
 )

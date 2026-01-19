@@ -108,7 +108,7 @@ func start() {
 	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, apps.APP_CMD).UseJSDomainAsHubDomainName()); err == nil {
 		registerFunctionTypes(runtime)
 		runtime.RegisterOnAfterStartFunction(onAfterStart, false)
-		if err := runtime.Start(context.TODO(), cache.NewCacheConfig("graph_cache")); err != nil {
+		if err := runtime.Start(context.Background(), cache.NewCacheConfig("graph_cache")); err != nil {
 			lg.Logf(lg.ErrorLevel, "Cannot start due to an error: %s", err)
 		}
 	} else {

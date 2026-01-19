@@ -99,6 +99,8 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_CMD, easyjson.NewJSONObject(), false, true))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CMD, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_APP_CMD))
 
+	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m3"})
+
 	go healthyState(ctx)
 
 	return nil

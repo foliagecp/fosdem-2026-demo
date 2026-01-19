@@ -10,16 +10,8 @@ services:
     volumes:
        - ./nats.conf:/etc/nats.conf
 
-  io:
-    image: natsio/nats-box:latest
-    entrypoint:
-      - /bin/sh
-    tty: true
-    depends_on:
-      - nats
-
   cmd:
-    image: foliage-demo/cmd:latest
+    image: foliage-demo/cmd-m2:latest
     restart: always
     command: /usr/bin/runtime -ll 6
     env_file: cmd/.env

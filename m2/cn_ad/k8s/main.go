@@ -18,9 +18,14 @@ import (
 	k8s "k8s.io/client-go/kubernetes"
 )
 
+const (
+	pushUpdateFnName          = "function.cn_ad.k8s.push_update"
+	k8sInfrastructureRootUUID = "k8s_infrastructure"
+)
+
 var (
 	natsURL        = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
-	kubeconfigPath = system.GetEnvMustProceed("KUBECONFIG_PATH", "/configs/kubeconfig")
+	kubeconfigPath = system.GetEnvMustProceed("KUBECONFIG_PATH", "/kubeconfig")
 	dumpMode       = system.GetEnvMustProceed("DUMP_MODE", true)
 	dumpFile       = system.GetEnvMustProceed("DUMP_FILE", "/dumps/kube_dump.yaml")
 )
@@ -62,9 +67,11 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 
 	createScheme(dbc)
 
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CN_AD_K8S, easyjson.NewJSONObject(), true, types.TYPE_FOLIAGE_APP_CONNECTOR_ADAPTER))
+	adapterBody := easyjson.NewJSONObject()
+	adapterBody.SetByPath("push_update_function", easyjson.NewJSON(pushUpdateFnName))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CN_AD_K8S, adapterBody, true, types.TYPE_FOLIAGE_APP_ADAPTER))
 
-	k8sInfrastructureObjectID := system.GetHashStr(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE)
+	k8sInfrastructureObjectID := k8sInfrastructureRootUUID
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(k8sInfrastructureObjectID, easyjson.NewJSONObject(), true, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(apps.APP_CN_AD_K8S, k8sInfrastructureObjectID, nil, easyjson.NewJSONObject(), true, k8sInfrastructureObjectID))
 
@@ -83,12 +90,24 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 		return err
 	}
 
+	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m3", "m4"})
+
 	go func() {
 		<-ctx.Done()
 		close(stopCh)
 	}()
 
 	return nil
+}
+
+func pushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+	system.MsgOnErrorReturn(ctx.Signal(
+		sfPlugins.AutoSignalSelect,
+		"functions.cn_ad.k8s.build",
+		ctx.Self.ID,
+		nil,
+		nil,
+	))
 }
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
@@ -104,6 +123,12 @@ func registerFunctionTypes(runtime *statefun.Runtime) {
 		status,
 		*statefun.NewFunctionTypeConfig().SetAllowedRequestProviders(sfPlugins.AutoRequestSelect),
 	)
+	statefun.NewFunctionType(
+		runtime,
+		pushUpdateFnName,
+		pushUpdate,
+		*statefun.NewFunctionTypeConfig().SetAllowedSignalProviders(sfPlugins.AutoSignalSelect),
+	)
 }
 
 func start() {
@@ -112,7 +137,7 @@ func start() {
 		SetDomainRoutersHandling(false).UseJSDomainAsHubDomainName()); err == nil {
 		registerFunctionTypes(runtime)
 		runtime.RegisterOnAfterStartFunction(onAfterStart, false)
-		if err := runtime.Start(context.TODO(), cache.NewCacheConfig("cn_ad_cache")); err != nil {
+		if err = runtime.Start(context.TODO(), cache.NewCacheConfig("cn_ad_cache")); err != nil {
 			lg.Logf(lg.ErrorLevel, "Cannot start due to an error: %s", err)
 		}
 	} else {

@@ -2,10 +2,9 @@ package types
 
 const (
 	// Foliage Applications -------------------------------
-	TYPE_FOLIAGE_APP_CMD               = "foliage-app-cmd"
-	TYPE_FOLIAGE_APP_CONNECTOR         = "foliage-app-connector"
-	TYPE_FOLIAGE_APP_ADAPTER           = "foliage-app-adapter"
-	TYPE_FOLIAGE_APP_CONNECTOR_ADAPTER = "foliage-app-connector-adapter"
+	TYPE_FOLIAGE_APP_CMD       = "foliage-app-cmd"
+	TYPE_FOLIAGE_APP_CONNECTOR = "foliage-app-connector"
+	TYPE_FOLIAGE_APP_ADAPTER   = "foliage-app-adapter"
 	// ----------------------------------------------------
 
 	// Foliage Connector-Adapter --------------------------
@@ -15,6 +14,11 @@ const (
 	TYPE_FOLIAGE_POD                = "foliage-cn_ad-k8s-pod"
 	TYPE_FOLIAGE_DEPLOYMENT         = "foliage-cn_ad-k8s-deployment"
 	TYPE_FOLIAGE_REPLICATION_SET    = "foliage-cn_ad-k8s-replication_set"
+	// ----------------------------------------------------
+
+	// Types from M3 (architecture model) -----------------
+	TYPE_FOLIAGE_ADAPTER_ARCH_MODEL = "foliage-adapter-arch_model"
+	TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK = "foliage-adapter-arch_block"
 	// ----------------------------------------------------
 )
 

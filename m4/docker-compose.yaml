@@ -13,7 +13,7 @@ services:
        - ./nats.conf/:/etc/nats/nats.conf
 
   cmd:
-    image: foliage-demo/m4-cmd:latest
+    image: foliage-demo/cmd-m4:latest
     restart: always
     command: /usr/bin/runtime -ll 6
     env_file: cmd/.env
@@ -37,7 +37,7 @@ services:
         max-file: "5"
 
   ad-dc:
-    image: foliage-demo/m4-ad-dc:latest
+    image: foliage-demo/ad-dc:latest
     restart: always
     command: /usr/bin/runtime -ll 6
     env_file: adapters/dc/.env

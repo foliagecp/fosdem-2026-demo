@@ -20,6 +20,7 @@ import (
 
 const (
 	pushUpdateFoliageFunctionName = "function.adapter.dc.push_update"
+	datacenterRootUUID            = "datacenter"
 )
 
 var (
@@ -111,8 +112,7 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, types.TYPE_FOLIAGE_ADAPTER_DATACENTER, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, types.TYPE_FOLIAGE_APP_ADAPTER, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_APP_ADAPTER))
 
-	dcObjectID := system.GetHashStr(types.TYPE_FOLIAGE_ADAPTER_DATACENTER)
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(dcObjectID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
 
 	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m3"})
 
