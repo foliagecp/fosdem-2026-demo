@@ -68,7 +68,7 @@ nats_pub_payload() {
     printf 'CONNECT {"verbose":false,"pedantic":false,"tls_required":false,"name":"lab-agent","user":"%s","pass":"%s"}\r\n' "$NATS_USER" "$NATS_PASS"
     printf 'PUB %s %s\r\n' "$subject" "$len"
     printf '%s\r\n' "$msg"
-    printf 'QUIT\r\n'
+#    printf 'QUIT\r\n'
   } | nc -w 2 "$NATS_HOST" "$NATS_PORT" >/dev/null 2>&1 || true
 }
 
