@@ -20,6 +20,8 @@ github.com/foliagecp/easyjson v0.1.10 h1:jDUwQEOn9kFhPWMqLyjJtq8STIIsdPK1ff4rlvM
 github.com/foliagecp/easyjson v0.1.10/go.mod h1:GTJFL3X3UXLq65yYiZZ6aOv6EMUtxGHhblPPvW7a5/s=
 github.com/foliagecp/sdk v0.1.12-dev24122025 h1:Za221JK2RPZ/8Wt071cYfYvct/SlolMhofNh9I1RLlk=
 github.com/foliagecp/sdk v0.1.12-dev24122025/go.mod h1:mcFiD5A7VDfspdnT58ZQ9dt2t55rLeNh2fZQ3ZuglYE=
+github.com/foliagecp/sdk v0.1.13-dev19012026 h1:1R39CDwZ6a8HEq7WTHxx64aYFGv/rEuQRiAXBZ+M2Js=
+github.com/foliagecp/sdk v0.1.13-dev19012026/go.mod h1:mcFiD5A7VDfspdnT58ZQ9dt2t55rLeNh2fZQ3ZuglYE=
 github.com/foliagecp/ui-app-lib v0.1.10-dev08122025 h1:16y3SOZIXP9adH8EW7xPB63LMXY0b75l+CUsTKC11B4=
 github.com/foliagecp/ui-app-lib v0.1.10-dev08122025/go.mod h1:G6uN9yS2Bp1hrc9bwx3RSiBOyPcEW62NAK/ehC2x1WY=
 github.com/fxamacker/cbor/v2 v2.9.0 h1:NpKPmjDBgUfBms6tr6JZkTHtfFGcMKsw3eGcmD/sapM=

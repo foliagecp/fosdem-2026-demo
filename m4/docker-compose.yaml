@@ -1,0 +1,53 @@
+services:
+  nats:
+    image: nats:latest
+    restart: always
+    command: -c /etc/nats/nats.conf
+    ports:
+      - "4222:4222"
+      - "6222:6222"
+      - "7422:7422"
+      - "8222:8222"
+      - "10443:443"
+    volumes:
+       - ./nats.conf/:/etc/nats/nats.conf
+
+  cmd:
+    image: foliage-demo/m4-cmd:latest
+    restart: always
+    command: /usr/bin/runtime -ll 6
+    env_file: cmd/.env
+    depends_on:
+      - nats
+    build:
+      context: ..
+      dockerfile: m4/cmd/Dockerfile
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://cmd:9000/health"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./cmd/data:/data
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  ad-dc:
+    image: foliage-demo/m4-ad-dc:latest
+    restart: always
+    command: /usr/bin/runtime -ll 6
+    env_file: adapters/dc/.env
+    depends_on:
+      cmd:
+        condition: service_healthy
+    build:
+      context: ..
+      dockerfile: m4/adapters/dc/Dockerfile
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "5"
