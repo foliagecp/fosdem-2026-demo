@@ -56,13 +56,13 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 
 	id, ok := payload.GetByPath("id").AsString()
 	if !ok {
-		lg.Logln(lg.ErrorLevel, "cannot get id from payload")
+		lg.Logf(lg.ErrorLevel, "cannot get id from payload")
 		return
 	}
 
 	weakDomain, ok := payload.GetByPath("domain").AsString()
 	if !ok {
-		lg.Logln(lg.ErrorLevel, "cannot get id from payload")
+		lg.Logf(lg.ErrorLevel, "cannot get domain from object: %s", id)
 		return
 	}
 
@@ -76,7 +76,7 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 
 	objType, ok := payload.GetByPath("type").AsString()
 	if !ok {
-		lg.Logf(lg.WarnLevel, "Object %s has no type", id)
+		lg.Logf(lg.WarnLevel, "cannot get domain from object: %s", id)
 		return
 	}
 
@@ -101,7 +101,7 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 	}
 
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, easyjson.NewJSONObject(), false, true))
-	adapterBody := easyjson.NewJSONObjectWithKeyValue("push_update_function", easyjson.NewJSON(postProcessFoliageFunctionName))
+	adapterBody := easyjson.NewJSONObjectWithKeyValue("post_process_function", easyjson.NewJSON(postProcessFoliageFunctionName))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_AD_DC, adapterBody, false, types.TYPE_FOLIAGE_APP_ADAPTER))
 
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, easyjson.NewJSONObject(), false, true))
@@ -111,7 +111,15 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
 
+	// --- Link to leaf models ---
 	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m3"})
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_ADAPTER_INFRA, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, types.TYPE_FOLIAGE_ADAPTER_INFRA, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_INFRA))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL))
+	///
 
 	return nil
 }

@@ -22,6 +22,7 @@ import (
 
 const (
 	pushUpdateFoliageFunctionName = "function.adapter.arch_model.push_update"
+	archModelRootUUID             = "arch_model"
 )
 
 var (
@@ -48,7 +49,7 @@ func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) 
 		return fmt.Errorf("cannot create db sync client: %v", err)
 	}
 	modelName := doc.GetByPath("name").AsStringDefault("unknown model")
-	modelUUID := system.GetHashStr(modelName + types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL)
+	modelUUID := archModelRootUUID
 
 	deleteArchModel(dbc, modelUUID)
 
