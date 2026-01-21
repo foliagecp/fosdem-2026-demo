@@ -52,8 +52,6 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		return
 	}
 
-	dcObjectID := ctx.Domain.CreateObjectIDWithHubDomain(datacenterRootUUID, false)
-
 	id, ok := payload.GetByPath("id").AsString()
 	if !ok {
 		lg.Logf(lg.ErrorLevel, "cannot get id from payload")
@@ -84,8 +82,9 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, objType))
 	dbc.CMDB.ShadowObjectCanBeRecevier = false
 
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(dcObjectID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID))
-	lg.Logf(lg.InfoLevel, "Linked datacenter to shadow: %s -> %s", dcObjectID, shadowID)
+	if err = dbc.CMDB.ObjectsLinkUpdate(datacenterRootUUID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID); err != nil {
+		lg.Logf(lg.InfoLevel, "Linked datacenter to shadow: %s -> %s", datacenterRootUUID, shadowID)
+	}
 
 	adapterUpdateStatus(dbc)
 }

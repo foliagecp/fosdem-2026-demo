@@ -20,6 +20,7 @@ import (
 
 const (
 	pushUpdateFnName          = "function.cn_ad.k8s.push_update"
+	postProcessFnName         = "function.cn_ad.k8s.post_process"
 	k8sInfrastructureRootUUID = "k8s_infrastructure"
 )
 
@@ -69,6 +70,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 
 	adapterBody := easyjson.NewJSONObject()
 	adapterBody.SetByPath("push_update_function", easyjson.NewJSON(pushUpdateFnName))
+	adapterBody.SetByPath("post_process_function", easyjson.NewJSON(postProcessFnName))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CN_AD_K8S, adapterBody, true, types.TYPE_FOLIAGE_APP_ADAPTER))
 
 	k8sInfrastructureObjectID := k8sInfrastructureRootUUID
@@ -127,6 +129,12 @@ func registerFunctionTypes(runtime *statefun.Runtime) {
 		runtime,
 		pushUpdateFnName,
 		pushUpdate,
+		*statefun.NewFunctionTypeConfig().SetAllowedSignalProviders(sfPlugins.AutoSignalSelect),
+	)
+	statefun.NewFunctionType(
+		runtime,
+		postProcessFnName,
+		postProcess,
 		*statefun.NewFunctionTypeConfig().SetAllowedSignalProviders(sfPlugins.AutoSignalSelect),
 	)
 }
