@@ -21,7 +21,6 @@ import (
 
 const (
 	pushUpdateFoliageFunctionName = "function.adapter.arch_model.push_update"
-	archModelRootUUID             = "arch_model"
 )
 
 var (
@@ -44,7 +43,7 @@ func deleteArchModel(dbc db.DBSyncClient, modelUUID string) {
 
 func buildArchModel(dbc db.DBSyncClient, doc easyjson.JSON) error {
 	modelName := doc.GetByPath("name").AsStringDefault("unknown model")
-	modelUUID := archModelRootUUID
+	modelUUID := system.GetHashStr(modelName + types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL)
 
 	deleteArchModel(dbc, modelUUID)
 
