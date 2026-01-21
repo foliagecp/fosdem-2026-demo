@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
       build-essential gcc
 
 COPY ./go.mod ./go.sum ./
+COPY ./common ./common/
 COPY ./m3/common ./m3/common/
 COPY ./m3/adapters/arch_model ./adapters/arch_model
 

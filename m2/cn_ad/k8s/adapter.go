@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	lg "github.com/foliagecp/sdk/statefun/logger"
@@ -162,6 +163,9 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				case nodeKind:
 				}
 			}
+			if pod.ReqReply.PathExists("data.error") {
+				//TODO run signal error distribute
+			}
 		}
 		for replicasetID, replicaSet := range replicasets {
 			if replicaSet.ReqError == nil {
@@ -180,6 +184,13 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 		clusterBody.SetByPath("resources", easyjson.NewJSON(res))
 		system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, clusterBody, false))
 	}
+
+	notifierPayload := easyjson.NewJSONObject()
+	notifierPayload.SetByPath("domain", easyjson.NewJSON(ctx.Domain.Name()))
+	notifierPayload.SetByPath("id", easyjson.NewJSON(ctx.Domain.GetObjectIDWithoutDomain(ctx.Self.ID)))
+	notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
+	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_model"))
+	common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
 }
 
 func status(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {

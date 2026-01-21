@@ -9,6 +9,7 @@ import (
 	"time"
 
 	easyjson "github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m3/common/apps"
 	"github.com/foliagecp/fosdem-2026-demo/m3/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
@@ -41,7 +42,11 @@ func deleteArchModel(dbc db.DBSyncClient, modelUUID string) {
 	}
 }
 
-func buildArchModel(dbc db.DBSyncClient, doc easyjson.JSON) error {
+func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) error {
+	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
+	if err != nil {
+		return fmt.Errorf("cannot create db sync client: %v", err)
+	}
 	modelName := doc.GetByPath("name").AsStringDefault("unknown model")
 	modelUUID := system.GetHashStr(modelName + types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL)
 
@@ -57,6 +62,13 @@ func buildArchModel(dbc db.DBSyncClient, doc easyjson.JSON) error {
 	); err != nil {
 		return fmt.Errorf("ObjectUpdate failed for model %q: %w", modelName, err)
 	}
+
+	notifierPayload := easyjson.NewJSONObject()
+	notifierPayload.SetByPath("domain", easyjson.NewJSON(ctx.Domain.Name()))
+	notifierPayload.SetByPath("id", easyjson.NewJSON(modelUUID))
+	notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL))
+	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_model"))
+	common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
 
 	blocksJ := doc.GetByPath("blocks")
 	blocksArr, ok := blocksJ.AsArray()
@@ -95,6 +107,14 @@ func buildArchModel(dbc db.DBSyncClient, doc easyjson.JSON) error {
 		); err != nil {
 			return fmt.Errorf("ObjectUpdate failed for block %q: %w", name, err)
 		}
+
+		notifierPayload := easyjson.NewJSONObject()
+		notifierPayload.SetByPath("domain", easyjson.NewJSON(ctx.Domain.Name()))
+		notifierPayload.SetByPath("id", easyjson.NewJSON(id))
+		notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK))
+		notifierPayload.SetByPath("operation", easyjson.NewJSON("link_arch_block"))
+		common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
+
 		if err := dbc.CMDB.ObjectsLinkUpdate(
 			modelUUID,
 			id,
@@ -173,7 +193,7 @@ func pushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProc
 		if uuids, err := dbc.Query.JPGQLCtraQuery(ctx.Caller.ID, fmt.Sprintf(".*[l:type('%s')]", types.TYPE_FOLIAGE_CONNECTOR_JSON_FILE)); err == nil {
 			if len(uuids) > 0 {
 				if data, err := dbc.CMDB.ObjectRead(uuids[0]); err == nil {
-					if err := buildArchModel(dbc, data.GetByPath("body")); err != nil {
+					if err = buildArchModel(ctx, data.GetByPath("body")); err != nil {
 						lg.Logln(lg.ErrorLevel, "cannot build architecture model: %v", err)
 						return
 					}

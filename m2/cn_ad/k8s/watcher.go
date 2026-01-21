@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -31,6 +32,7 @@ const (
 )
 
 const (
+	k8sDefaultNamespace             = "default"
 	k8sSystemNamespaceKubeSystem    = "kube-system"
 	k8sSystemNamespaceKubePublic    = "kube-public"
 	k8sSystemNamespaceKubeNodeLease = "kube-node-lease"
@@ -45,6 +47,8 @@ const (
 	jobKind         = "Job"
 	cronJobKind     = "CronJob"
 )
+
+var k8sNamespaceForInformer = system.GetEnvMustProceed("K8S_NAMESPACE", k8sDefaultNamespace)
 
 type EventType = string
 
@@ -85,7 +89,7 @@ func NewWatcher(
 	clusterID string,
 	stopCh <-chan struct{},
 ) (*Watcher, error) {
-	factory := informers.NewSharedInformerFactory(k8sClient, 0)
+	factory := informers.NewSharedInformerFactoryWithOptions(k8sClient, 10*time.Second, informers.WithNamespace(k8sNamespaceForInformer))
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
 	if err != nil {
@@ -217,6 +221,15 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 			}
 		}
 
+		if cs := resource.Status.ContainerStatuses; len(cs) > 0 {
+			m2Object.SetByPath("restartCount", easyjson.NewJSON(cs[0].RestartCount))
+			//if cs[0].RestartCount > 0 {
+			if rand.Float64() < 0.5 { //FIXME TODO TEST!!!!!!! DELETE for production, check ERROR
+				m2Object.SetByPath("error", easyjson.NewJSON(true))
+			}
+			//}
+		}
+
 		typeName = types.TYPE_FOLIAGE_POD
 
 	case *appsv1.Deployment:
@@ -259,7 +272,7 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 	switch eventType {
 	case DELETE:
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectDelete(objID))
-		if typeName == types.TYPE_FOLIAGE_POD || typeName == types.TYPE_FOLIAGE_DEPLOYMENT {
+		if typeName == types.TYPE_FOLIAGE_POD || typeName == types.TYPE_FOLIAGE_DEPLOYMENT || typeName == types.TYPE_FOLIAGE_NODE {
 			body.SetByPath("type", easyjson.NewJSON(typeName))
 			body.SetByPath("operation", easyjson.NewJSON("delete"))
 			w.notifyAdapters(&body)
@@ -271,7 +284,7 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 		}
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.k8sInfrastructureID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
-		if typeName == types.TYPE_FOLIAGE_POD || typeName == types.TYPE_FOLIAGE_DEPLOYMENT {
+		if typeName == types.TYPE_FOLIAGE_POD || typeName == types.TYPE_FOLIAGE_DEPLOYMENT || typeName == types.TYPE_FOLIAGE_NODE {
 			body.SetByPath("type", easyjson.NewJSON(typeName))
 			body.SetByPath("operation", easyjson.NewJSON("add"))
 			w.notifyAdapters(&body)
@@ -317,7 +330,7 @@ func (w *Watcher) rebuild() {
 		w.runtime.Signal(
 			sfPlugins.AutoSignalSelect,
 			"functions.cn_ad.k8s.build",
-			w.clusterID,
+			w.k8sInfrastructureID,
 			nil,
 			nil,
 		),
@@ -325,16 +338,16 @@ func (w *Watcher) rebuild() {
 }
 
 func (w *Watcher) notifyAdapters(body *easyjson.JSON) {
-	getPushUpdateFunction := func(adapterUUID string) (string, bool) {
+	getPostProcessFunction := func(adapterUUID string) (string, bool) {
 		if data, err := w.dbc.CMDB.ObjectRead(adapterUUID); err == nil {
-			return data.GetByPath("body.push_update_function").AsString()
+			return data.GetByPath("body.post_process_function").AsString()
 		}
 		return "", false
 	}
 	for _, dm := range w.runtime.Domain.GetWeakClusterDomains() {
 		if uuids, err := w.dbc.Query.JPGQLCtraQuery(w.runtime.Domain.CreateObjectIDWithDomain(dm, types.TYPE_FOLIAGE_APP_ADAPTER, true), ".*[l:type('__object')]"); err == nil {
 			for _, uuid := range uuids {
-				if typename, ok := getPushUpdateFunction(uuid); ok {
+				if typename, ok := getPostProcessFunction(uuid); ok {
 					system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, typename, uuid, body, nil))
 				}
 			}

@@ -8,6 +8,6 @@ const (
 	// ----------------------------------------------------
 
 	// Foliage Adapters -----------------------------------
-	TYPE_FOLIAGE_ADAPTER_DATACENTER = "foliage-adapter-datacenter"
+	TYPE_FOLIAGE_ADAPTER_DATACENTER = "foliage-adapter-dc"
 	// ----------------------------------------------------
 )

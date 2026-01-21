@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
 COPY ./go.mod ./go.sum ./
 COPY ./m1/common ./m1/common/
 COPY ./m1/adapters/infra ./adapters/infra
+COPY ./common ./common
 
 RUN cd ./adapters/infra && go build -o /usr/bin/runtime
 

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	easyjson "github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/apps"
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/types"
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/util"
@@ -111,6 +112,13 @@ func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContex
 			lg.Logf(lg.WarnLevel, "infra.push_update: unknown vm command=%s source_type=%s", command, sourceType)
 		}
 	}
+
+	notifierPayload := easyjson.NewJSONObject()
+	notifierPayload.SetByPath("domain", easyjson.NewJSON(ctx.Domain.Name()))
+	notifierPayload.SetByPath("id", easyjson.NewJSON(infraRootUUID))
+	notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_ADAPTER_INFRA))
+	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_model"))
+	common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
 
 	adapterUpdateStatus(dbc)
 }

@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	pushUpdateFnName = "function.adapter.infra.push_update"
+	pushUpdateFnName     = "function.adapter.infra.push_update"
+	postProcessingFnName = "function.adapter.infra.post_processing"
 )
 
 var (
@@ -31,6 +32,7 @@ var (
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(runtime, pushUpdateFnName, infraPushUpdate, *statefun.NewFunctionTypeConfig())
+	//statefun.NewFunctionType(runtime, postProcessingFnName, infraPostProcess, *statefun.NewFunctionTypeConfig())
 }
 
 func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
@@ -44,6 +46,7 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 
 	adapterBody := easyjson.NewJSONObject()
 	adapterBody.SetByPath("push_update_function", easyjson.NewJSON(pushUpdateFnName))
+	adapterBody.SetByPath("post_process_function", easyjson.NewJSON(postProcessingFnName))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_AD_INFRA, adapterBody, true, types.TYPE_FOLIAGE_APP_ADAPTER))
 
 	// Domain types.
@@ -63,6 +66,11 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 		system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(t, easyjson.NewJSONObject(), false, true))
 		system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, t, nil, easyjson.NewJSONObject(), false, t))
 	}
+
+	// K8s Node type for shadow objects from M2 -------
+	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_NODE, easyjson.NewJSONObject(), false, true))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_NODE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
+	// ------------------------------------------------
 
 	// Domain links (both directions where needed).
 	linkTypes := [][2]string{
@@ -94,6 +102,10 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 
 	// Root object.
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(infraRootUUID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_INFRA))
+
+	// Set weak cluster domains to connect to M2 ------
+	runtime.Domain.SetWeakClusterDomains([]string{"m2", "m3", "m4"})
+	// ------------------------------------------------
 
 	return nil
 }

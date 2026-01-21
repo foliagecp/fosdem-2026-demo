@@ -16,11 +16,12 @@ import (
 	lg "github.com/foliagecp/sdk/statefun/logger"
 	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
 	"github.com/foliagecp/sdk/statefun/system"
+	"k8s.io/utils/strings/slices"
 )
 
 const (
-	pushUpdateFoliageFunctionName = "function.adapter.dc.push_update"
-	datacenterRootUUID            = "datacenter"
+	postProcessFoliageFunctionName = "function.adapter.dc.post_process"
+	datacenterRootUUID             = "datacenter"
 )
 
 var (
@@ -38,63 +39,59 @@ func adapterUpdateStatus(dbc db.DBSyncClient) {
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_AD_DC, data, false, types.TYPE_FOLIAGE_APP_ADAPTER))
 }
 
-func pushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+	payload := ctx.Payload
+	if operation := payload.GetByPath("operation").AsStringDefault(""); operation != "link_model" {
+		lg.Logf(lg.InfoLevel, "skip post process operation '%s'", operation)
+		return
+	}
+
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
 		lg.Logln(lg.ErrorLevel, "cannot create db client")
 		return
 	}
 
-	dcObjectID := system.GetHashStr(types.TYPE_FOLIAGE_ADAPTER_DATACENTER)
+	dcObjectID := ctx.Domain.CreateObjectIDWithHubDomain(datacenterRootUUID, false)
 
-	for _, domain := range ctx.Domain.GetWeakClusterDomains() {
-		if domain == ctx.Domain.HubDomainName() {
-			continue
-		}
-		adapterTypeID := ctx.Domain.CreateObjectIDWithDomain(domain, types.TYPE_FOLIAGE_APP_ADAPTER, true)
-
-		adapterUUIDs, err := dbc.Query.JPGQLCtraQuery(adapterTypeID, ".*[l:type('__object')]")
-		if err != nil {
-			lg.Logf(lg.WarnLevel, "Failed to find adapters in domain %s: %v", domain, err)
-			continue
-		}
-
-		if len(adapterUUIDs) == 0 {
-			lg.Logf(lg.WarnLevel, "No adapters found in domain %s", domain)
-			continue
-		}
-
-		lg.Logf(lg.InfoLevel, "Found %d adapter(s) in domain %s", len(adapterUUIDs), domain)
-
-		for _, adapter := range adapterUUIDs {
-			objData, err := dbc.CMDB.ObjectRead(adapter)
-			if err != nil {
-				lg.Logf(lg.WarnLevel, "Failed to read object %s: %v", adapter, err)
-				continue
-			}
-
-			objType, ok := objData.GetByPath("type").AsString()
-			if !ok {
-				lg.Logf(lg.WarnLevel, "Object %s has no type", adapter)
-				continue
-			}
-
-			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), domain, ctx.Domain.GetObjectIDWithoutDomain(adapter))
-
-			dbc.CMDB.ShadowObjectCanBeRecevier = true
-			system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, objType))
-			dbc.CMDB.ShadowObjectCanBeRecevier = false
-
-			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(dcObjectID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID))
-			lg.Logf(lg.InfoLevel, "Linked datacenter to shadow: %s -> %s", dcObjectID, shadowID)
-		}
+	id, ok := payload.GetByPath("id").AsString()
+	if !ok {
+		lg.Logln(lg.ErrorLevel, "cannot get id from payload")
+		return
 	}
+
+	weakDomain, ok := payload.GetByPath("domain").AsString()
+	if !ok {
+		lg.Logln(lg.ErrorLevel, "cannot get id from payload")
+		return
+	}
+
+	if !slices.Contains(ctx.Domain.GetWeakClusterDomains(), weakDomain) {
+		wcd := ctx.Domain.GetWeakClusterDomains()
+		wcd = append(wcd, weakDomain)
+		ctx.Domain.SetWeakClusterDomains(wcd)
+	}
+
+	shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), weakDomain, id)
+
+	objType, ok := payload.GetByPath("type").AsString()
+	if !ok {
+		lg.Logf(lg.WarnLevel, "Object %s has no type", id)
+		return
+	}
+
+	dbc.CMDB.ShadowObjectCanBeRecevier = true
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, objType))
+	dbc.CMDB.ShadowObjectCanBeRecevier = false
+
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(dcObjectID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID))
+	lg.Logf(lg.InfoLevel, "Linked datacenter to shadow: %s -> %s", dcObjectID, shadowID)
 
 	adapterUpdateStatus(dbc)
 }
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
-	statefun.NewFunctionType(runtime, pushUpdateFoliageFunctionName, pushUpdate, *statefun.NewFunctionTypeConfig())
+	statefun.NewFunctionType(runtime, postProcessFoliageFunctionName, postProcess, *statefun.NewFunctionTypeConfig())
 }
 
 func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
@@ -104,7 +101,7 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 	}
 
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, easyjson.NewJSONObject(), false, true))
-	adapterBody := easyjson.NewJSONObjectWithKeyValue("push_update_function", easyjson.NewJSON(pushUpdateFoliageFunctionName))
+	adapterBody := easyjson.NewJSONObjectWithKeyValue("push_update_function", easyjson.NewJSON(postProcessFoliageFunctionName))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_AD_DC, adapterBody, false, types.TYPE_FOLIAGE_APP_ADAPTER))
 
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, easyjson.NewJSONObject(), false, true))

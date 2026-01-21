@@ -20,6 +20,10 @@ const (
 	TYPE_FOLIAGE_ADAPTER_ARCH_MODEL = "foliage-adapter-arch_model"
 	TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK = "foliage-adapter-arch_block"
 	// ----------------------------------------------------
+
+	// Types from M1 (infrastructure) ---------------------
+	TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE = "foliage-adapter-virtual_machine"
+	// ----------------------------------------------------
 )
 
 // tags
