@@ -36,7 +36,7 @@ func adapterUpdateStatus(dbc db.DBSyncClient) {
 	data.SetByPath("updated_at.datetime", easyjson.NewJSON(t.Format("2006-01-02 15:04:05 MST")))
 	data.SetByPath("updated_at.nano", easyjson.NewJSON(t.UnixNano()))
 
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_AD_DC, data, false, types.TYPE_FOLIAGE_APP_ADAPTER))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, data, false, types.TYPE_FOLIAGE_APP_ADAPTER))
 }
 
 func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {

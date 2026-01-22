@@ -147,7 +147,7 @@ func adapterUpdateStatus(dbc db.DBSyncClient) {
 	data.SetByPath("updated_at.datetime", easyjson.NewJSON(t.Format("2006-01-02 15:04:05 MST")))
 	data.SetByPath("updated_at.nano", easyjson.NewJSON(t.UnixNano()))
 
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CMD, data, false, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(k8sInfrastructureRootUUID, data, false, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
 }
 
 func start() {
