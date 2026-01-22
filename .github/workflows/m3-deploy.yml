@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Build
+        run: |
+          cd m3
+          docker compose build  
+
       - name: Stop and cleanup
         run: |
           docker compose -p m3 -f m3/docker-compose.yaml down -v --remove-orphans
@@ -20,5 +25,5 @@ jobs:
       - name: Deploy m3
         run: |
           cd m3
-          docker compose up -d --build
+          docker compose up -d
 
