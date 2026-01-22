@@ -17,11 +17,15 @@ func infraPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunConte
 	logCtx := context.Background()
 	payload := ctx.Payload
 
+	le.Debugf(logCtx, "infraPostProcess: received signal, payload=%s", payload.ToString())
+
 	operation, ok := payload.GetByPath("operation").AsString()
 	if !ok {
-		le.Errorf(logCtx, "operation not found in payload")
+		le.Errorf(logCtx, "infraPostProcess: operation not found in payload")
 		return
 	}
+
+	le.Debugf(logCtx, "infraPostProcess: operation=%s", operation)
 
 	if operation == "link_model" {
 		return
@@ -71,28 +75,38 @@ func handleNodeSignal(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcess
 	le := lg.GetLogger()
 	logCtx := context.Background()
 
+	le.Debugf(logCtx, "handleNodeSignal: started")
+
 	nodeUID, ok := payload.GetByPath("UID").AsString()
 	if !ok {
-		le.Errorf(logCtx, "cannot get UID from payload")
+		le.Errorf(logCtx, "handleNodeSignal: cannot get UID from payload")
 		return
 	}
 
 	systemUID, ok := payload.GetByPath("systemUID").AsString()
 	if !ok {
-		le.Errorf(logCtx, "cannot get systemUID from payload")
+		le.Errorf(logCtx, "handleNodeSignal: cannot get systemUID from payload")
 		return
 	}
 	systemUID = strings.ToLower(systemUID)
 
+	le.Debugf(logCtx, "handleNodeSignal: nodeUID=%s, systemUID=%s", nodeUID, systemUID)
+
 	// Find VMs with matching product_uuid
 	vms, err := getVirtualMachines(dbc)
 	if err != nil {
-		le.Errorf(logCtx, "cannot get virtual machines: %v", err)
+		le.Errorf(logCtx, "handleNodeSignal: cannot get virtual machines: %v", err)
 		return
+	}
+
+	le.Debugf(logCtx, "handleNodeSignal: found %d VMs", len(vms))
+	for _, vm := range vms {
+		le.Debugf(logCtx, "handleNodeSignal: VM %s has productUUID=%s", vm.ID, vm.ProductUUID)
 	}
 
 	for _, vm := range vms {
 		if vm.ProductUUID == systemUID {
+			le.Debugf(logCtx, "handleNodeSignal: MATCH! VM %s productUUID=%s matches systemUID=%s", vm.ID, vm.ProductUUID, systemUID)
 			// Create shadow Node object
 			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), "m2", nodeUID)
 
