@@ -22,6 +22,10 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		return
 	}
 
+	if operation == "link_model" {
+		return
+	}
+
 	id, ok := payload.GetByPath("id").AsString()
 	if !ok {
 		lg.Logf(lg.ErrorLevel, "cannot get id from payload")

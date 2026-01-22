@@ -23,6 +23,10 @@ func infraPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunConte
 		return
 	}
 
+	if operation == "link_model" {
+		return
+	}
+
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
 		lg.Logln(lg.ErrorLevel, "cannot create db client")
@@ -124,7 +128,7 @@ func getVirtualMachines(dbc db.DBSyncClient) ([]VirtualMachine, error) {
 			continue
 		}
 
-		productUUID := objData.GetByPath("body.sources.configuration.uuid").AsStringDefault("")
+		productUUID := objData.GetByPath("body.uuid").AsStringDefault("")
 
 		vms = append(vms, VirtualMachine{
 			ID:          vmID,

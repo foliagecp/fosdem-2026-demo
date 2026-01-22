@@ -135,6 +135,7 @@ func heartbeat(ctx context.Context, runtime *statefun.Runtime) {
 						lg.Logf(lg.WarnLevel, "::::::model '%s' is not available from %s", domain, runtime.Domain.Name())
 						payload := easyjson.NewJSONObjectWithKeyValue(fmt.Sprintf(statusIsReadyTmpl, domain), easyjson.NewJSON(false))
 						system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, payload, false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(linkType))
 					}
 				}
 			}

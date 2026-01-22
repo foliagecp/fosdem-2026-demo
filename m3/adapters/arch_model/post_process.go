@@ -23,6 +23,10 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 		return
 	}
 
+	if operation == "link_model" {
+		return
+	}
+
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
 		lg.Logln(lg.ErrorLevel, "cannot create db client")
