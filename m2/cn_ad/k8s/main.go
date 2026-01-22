@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/foliagecp/easyjson"
 	"github.com/foliagecp/fosdem-2026-demo/m2/common/apps"
@@ -137,6 +138,16 @@ func registerFunctionTypes(runtime *statefun.Runtime) {
 		postProcess,
 		*statefun.NewFunctionTypeConfig().SetAllowedSignalProviders(sfPlugins.AutoSignalSelect),
 	)
+}
+
+func adapterUpdateStatus(dbc db.DBSyncClient) {
+	t := time.Now()
+
+	data := easyjson.NewJSONObject()
+	data.SetByPath("updated_at.datetime", easyjson.NewJSON(t.Format("2006-01-02 15:04:05 MST")))
+	data.SetByPath("updated_at.nano", easyjson.NewJSON(t.UnixNano()))
+
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CMD, data, false, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
 }
 
 func start() {

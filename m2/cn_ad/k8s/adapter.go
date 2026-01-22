@@ -191,6 +191,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 	notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
 	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_model"))
 	common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
+	adapterUpdateStatus(dbc)
 }
 
 func status(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
