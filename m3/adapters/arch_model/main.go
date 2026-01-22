@@ -265,6 +265,8 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 
 	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m4"})
 
+	go common.HeartBeat(ctx, runtime, archModelRootUUID, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL)
+
 	return nil
 }
 

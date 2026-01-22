@@ -7,6 +7,7 @@ import (
 	"os"
 
 	easyjson "github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/apps"
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
@@ -19,7 +20,7 @@ import (
 
 const (
 	pushUpdateFnName     = "function.adapter.infra.push_update"
-	postProcessingFnName = "function.adapter.infra.post_processing"
+	postProcessingFnName = "function.adapter.infra.post_process"
 )
 
 var (
@@ -36,7 +37,7 @@ func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(runtime, postProcessingFnName, infraPostProcess, *statefun.NewFunctionTypeConfig().SetAllowedSignalProviders(sfPlugins.AutoSignalSelect))
 }
 
-func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
+func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
 	if err != nil {
 		return err
@@ -104,6 +105,8 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 	// Root object.
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(infraRootUUID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_INFRA))
 
+	go common.HeartBeat(ctx, runtime, infraRootUUID, types.TYPE_FOLIAGE_ADAPTER_INFRA)
+
 	// Set weak cluster domains to connect to M2 ------
 	runtime.Domain.SetWeakClusterDomains([]string{"m2", "m3", "m4"})
 	// ------------------------------------------------
@@ -112,7 +115,7 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 }
 
 func start() {
-	system.GlobalPrometrics = system.NewPrometrics("", ":9901")
+	system.GlobalPrometrics = system.NewPrometrics("", ":19901")
 	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, apps.APP_AD_INFRA).UseJSDomainAsHubDomainName().SetDomainRoutersHandling(false)); err == nil {
 		registerFunctionTypes(runtime)
 		runtime.RegisterOnAfterStartFunction(onAfterStart, false)

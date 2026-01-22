@@ -187,7 +187,7 @@ func notifyVMCreated(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcesso
 	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_vm"))
 	// Include sources.configuration.uuid for M2 to match with Node's systemUID
 	if cfgUUID := vmObj.GetByPath("body.sources.configuration.uuid").AsStringDefault(""); cfgUUID != "" {
-		notifierPayload.SetByPath("sources.configuration.uuid", easyjson.NewJSON(cfgUUID))
+		notifierPayload.SetByPath("uuid", easyjson.NewJSON(cfgUUID))
 	}
 	common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
 }

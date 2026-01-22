@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m4/common/apps"
 	"github.com/foliagecp/fosdem-2026-demo/m4/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
@@ -102,6 +103,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m3"})
 
 	go healthyState(ctx)
+	go common.HeartBeat(ctx, runtime, "datacenter", types.TYPE_FOLIAGE_ADAPTER_DATACENTER)
 
 	return nil
 }

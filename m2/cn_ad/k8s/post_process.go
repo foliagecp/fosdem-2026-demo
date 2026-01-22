@@ -74,7 +74,7 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		dbc.CMDB.ShadowObjectCanBeRecevier = true
 		system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
 		dbc.CMDB.ShadowObjectCanBeRecevier = false
-		uuid, ok := payload.GetByPath("sources.configuration.uuid").AsString()
+		uuid, ok := payload.GetByPath("uuid").AsString()
 		if !ok {
 			lg.Logf(lg.ErrorLevel, "cannot get uuid from payload")
 			return

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m2/common/apps"
 	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
@@ -99,6 +100,8 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 		<-ctx.Done()
 		close(stopCh)
 	}()
+
+	go common.HeartBeat(ctx, runtime, k8sInfrastructureRootUUID, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE)
 
 	return nil
 }

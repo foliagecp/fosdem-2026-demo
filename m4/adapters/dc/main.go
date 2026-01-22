@@ -29,14 +29,15 @@ var (
 	natsURL = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
 )
 
-func adapterUpdateStatus(dbc db.DBSyncClient) {
+func adapterUpdateStatus(dbc db.DBSyncClient, domain string) {
 	t := time.Now()
 
 	data := easyjson.NewJSONObject()
 	data.SetByPath("updated_at.datetime", easyjson.NewJSON(t.Format("2006-01-02 15:04:05 MST")))
 	data.SetByPath("updated_at.nano", easyjson.NewJSON(t.UnixNano()))
+	data.SetByPath(fmt.Sprintf("%s_status_IsReady", domain), easyjson.NewJSON(true))
 
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, data, false, types.TYPE_FOLIAGE_APP_ADAPTER))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
 }
 
 func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
@@ -64,29 +65,32 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		return
 	}
 
-	if !slices.Contains(ctx.Domain.GetWeakClusterDomains(), weakDomain) {
-		wcd := ctx.Domain.GetWeakClusterDomains()
-		wcd = append(wcd, weakDomain)
-		ctx.Domain.SetWeakClusterDomains(wcd)
+	if weakDomain != ctx.Domain.Name() {
+
+		if !slices.Contains(ctx.Domain.GetWeakClusterDomains(), weakDomain) {
+			wcd := ctx.Domain.GetWeakClusterDomains()
+			wcd = append(wcd, weakDomain)
+			ctx.Domain.SetWeakClusterDomains(wcd)
+		}
+
+		shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), weakDomain, id)
+
+		objType, ok := payload.GetByPath("type").AsString()
+		if !ok {
+			lg.Logf(lg.WarnLevel, "cannot get domain from object: %s", id)
+			return
+		}
+
+		dbc.CMDB.ShadowObjectCanBeRecevier = true
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, objType))
+		dbc.CMDB.ShadowObjectCanBeRecevier = false
+
+		if err = dbc.CMDB.ObjectsLinkUpdate(datacenterRootUUID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID); err != nil {
+			lg.Logf(lg.InfoLevel, "Linked datacenter to shadow: %s -> %s", datacenterRootUUID, shadowID)
+		}
 	}
 
-	shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), weakDomain, id)
-
-	objType, ok := payload.GetByPath("type").AsString()
-	if !ok {
-		lg.Logf(lg.WarnLevel, "cannot get domain from object: %s", id)
-		return
-	}
-
-	dbc.CMDB.ShadowObjectCanBeRecevier = true
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, objType))
-	dbc.CMDB.ShadowObjectCanBeRecevier = false
-
-	if err = dbc.CMDB.ObjectsLinkUpdate(datacenterRootUUID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID); err != nil {
-		lg.Logf(lg.InfoLevel, "Linked datacenter to shadow: %s -> %s", datacenterRootUUID, shadowID)
-	}
-
-	adapterUpdateStatus(dbc)
+	adapterUpdateStatus(dbc, weakDomain)
 }
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
