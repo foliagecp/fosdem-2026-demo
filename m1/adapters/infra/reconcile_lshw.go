@@ -34,6 +34,10 @@ func reconcileLshwGeneric(dbc db.DBSyncClient, parentUUID, parentType string, ra
 	if vendor := strings.TrimSpace(raw.GetByPath("vendor").AsStringDefault("")); vendor != "" {
 		upd.SetByPath("summary.vendor", easyjson.NewJSON(vendor))
 	}
+	// Extract configuration.uuid (product_uuid) for VM linking with K8s Nodes
+	if cfgUUID := strings.TrimSpace(raw.GetByPath("configuration.uuid").AsStringDefault("")); cfgUUID != "" {
+		upd.SetByPath("sources.configuration.uuid", easyjson.NewJSON(strings.ToLower(cfgUUID)))
+	}
 	if sn := strings.TrimSpace(firstStringByKey(raw, "serial")); sn != "" {
 		upd.SetByPath("summary.serial", easyjson.NewJSON(sn))
 		ensureSNObject(dbc, parentUUID, sn)

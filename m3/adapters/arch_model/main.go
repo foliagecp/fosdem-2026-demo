@@ -22,6 +22,7 @@ import (
 
 const (
 	pushUpdateFoliageFunctionName = "function.adapter.arch_model.push_update"
+	postProcessFnName             = "function.adapter.arch_model.post_process"
 	archModelRootUUID             = "arch_model"
 )
 
@@ -109,11 +110,18 @@ func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) 
 			return fmt.Errorf("ObjectUpdate failed for block %q: %w", name, err)
 		}
 
+		// Get service name for matching with K8s objects
+		serviceName := details.GetByPath("service").AsStringDefault("")
+		if serviceName == "" {
+			serviceName = strings.ToLower(name)
+		}
+
 		notifierPayload := easyjson.NewJSONObject()
 		notifierPayload.SetByPath("domain", easyjson.NewJSON(ctx.Domain.Name()))
 		notifierPayload.SetByPath("id", easyjson.NewJSON(id))
 		notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK))
 		notifierPayload.SetByPath("operation", easyjson.NewJSON("link_arch_block"))
+		notifierPayload.SetByPath("service", easyjson.NewJSON(serviceName))
 		common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
 
 		if err := dbc.CMDB.ObjectsLinkUpdate(
@@ -148,7 +156,7 @@ func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) 
 			return fmt.Errorf("invalid schema: blocks[%d].downstream must be an array", i)
 		}
 
-		fromID := system.GetHashStr(fromName)
+		fromID := system.GetHashStr(fromName + types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK)
 
 		for j, edgeRaw := range downArr {
 			edge := easyjson.NewJSON(edgeRaw)
@@ -162,7 +170,7 @@ func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) 
 				linkBody = edge.GetByPath("details")
 			}
 
-			toID := system.GetHashStr(toName)
+			toID := system.GetHashStr(toName + types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK)
 
 			// The user requested to use an empty JSON object for the link details.
 			// If you want to persist edge details (like "gRPC call"), you can extend this later.
@@ -223,6 +231,7 @@ func adapterUpdateStatus(dbc db.DBSyncClient) {
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(runtime, pushUpdateFoliageFunctionName, pushUpdate, *statefun.NewFunctionTypeConfig())
+	statefun.NewFunctionType(runtime, postProcessFnName, archModelPostProcess, *statefun.NewFunctionTypeConfig())
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
@@ -232,7 +241,9 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	}
 
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, easyjson.NewJSONObject(), false, true))
-	adapterBody := easyjson.NewJSONObjectWithKeyValue("push_update_function", easyjson.NewJSON(pushUpdateFoliageFunctionName))
+	adapterBody := easyjson.NewJSONObject()
+	adapterBody.SetByPath("push_update_function", easyjson.NewJSON(pushUpdateFoliageFunctionName))
+	adapterBody.SetByPath("post_process_function", easyjson.NewJSON(postProcessFnName))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_AD_ARCH_MODEL, adapterBody, false, types.TYPE_FOLIAGE_APP_ADAPTER))
 
 	// Init model data ----------------------------------------------

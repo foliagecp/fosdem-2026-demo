@@ -89,7 +89,7 @@ func NewWatcher(
 	clusterID string,
 	stopCh <-chan struct{},
 ) (*Watcher, error) {
-	factory := informers.NewSharedInformerFactoryWithOptions(k8sClient, 10*time.Second, informers.WithNamespace(k8sNamespaceForInformer))
+	factory := informers.NewSharedInformerFactoryWithOptions(k8sClient, 30*time.Second, informers.WithNamespace(k8sNamespaceForInformer))
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
 	if err != nil {
@@ -345,6 +345,9 @@ func (w *Watcher) notifyAdapters(body *easyjson.JSON) {
 		return "", false
 	}
 	for _, dm := range w.runtime.Domain.GetWeakClusterDomains() {
+		if dm == w.runtime.Domain.Name() {
+			continue
+		}
 		if uuids, err := w.dbc.Query.JPGQLCtraQuery(w.runtime.Domain.CreateObjectIDWithDomain(dm, types.TYPE_FOLIAGE_APP_ADAPTER, true), ".*[l:type('__object')]"); err == nil {
 			for _, uuid := range uuids {
 				if typename, ok := getPostProcessFunction(uuid); ok {

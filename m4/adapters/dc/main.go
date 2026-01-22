@@ -42,7 +42,7 @@ func adapterUpdateStatus(dbc db.DBSyncClient) {
 func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	payload := ctx.Payload
 	if operation := payload.GetByPath("operation").AsStringDefault(""); operation != "link_model" {
-		lg.Logf(lg.InfoLevel, "skip post process operation '%s'", operation)
+		//lg.Logf(lg.InfoLevel, "skip post process operation '%s'", operation)
 		return
 	}
 

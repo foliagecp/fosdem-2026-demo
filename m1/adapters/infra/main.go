@@ -13,6 +13,7 @@ import (
 	statefun "github.com/foliagecp/sdk/statefun"
 	"github.com/foliagecp/sdk/statefun/cache"
 	lg "github.com/foliagecp/sdk/statefun/logger"
+	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
 	"github.com/foliagecp/sdk/statefun/system"
 )
 
@@ -32,7 +33,7 @@ var (
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(runtime, pushUpdateFnName, infraPushUpdate, *statefun.NewFunctionTypeConfig())
-	//statefun.NewFunctionType(runtime, postProcessingFnName, infraPostProcess, *statefun.NewFunctionTypeConfig())
+	statefun.NewFunctionType(runtime, postProcessingFnName, infraPostProcess, *statefun.NewFunctionTypeConfig().SetAllowedSignalProviders(sfPlugins.AutoSignalSelect))
 }
 
 func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {

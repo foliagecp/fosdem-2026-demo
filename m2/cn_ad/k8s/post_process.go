@@ -48,12 +48,11 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		return
 	}
 
-	dbc.CMDB.ShadowObjectCanBeRecevier = true
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, objType))
-	dbc.CMDB.ShadowObjectCanBeRecevier = false
-
 	switch operation {
 	case "link_arch_block":
+		dbc.CMDB.ShadowObjectCanBeRecevier = true
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
+		dbc.CMDB.ShadowObjectCanBeRecevier = false
 		service, ok := payload.GetByPath("service").AsString()
 		if !ok {
 			lg.Logf(lg.ErrorLevel, "cannot get service from payload")
@@ -66,12 +65,15 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		}
 		for _, k8sObject := range k8sObjects {
 			if strings.Contains(k8sObject.ImageName, service) {
-				if createShadowLink(dbc, ctx, k8sObject.ID, id, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL, weakDomain) {
-					le.Infof(logCtx, "Linked k8s bject (type: %s) to shadow Arch Block %s", k8sObject.ObjType, service)
+				if createShadowLink(dbc, ctx, k8sObject.ID, id, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, weakDomain) {
+					le.Infof(logCtx, "Linked k8s object (type: %s) to shadow Arch Block %s", k8sObject.ObjType, service)
 				}
 			}
 		}
 	case "link_vm":
+		dbc.CMDB.ShadowObjectCanBeRecevier = true
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
+		dbc.CMDB.ShadowObjectCanBeRecevier = false
 		uuid, ok := payload.GetByPath("sources.configuration.uuid").AsString()
 		if !ok {
 			lg.Logf(lg.ErrorLevel, "cannot get uuid from payload")
@@ -90,7 +92,7 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 			}
 		}
 	default:
-		le.Infof(logCtx, "operation '%s' is not supported", operation)
+		//le.Infof(logCtx, "operation '%s' is not supported", operation)
 	}
 }
 

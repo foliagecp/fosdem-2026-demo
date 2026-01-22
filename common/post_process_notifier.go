@@ -17,6 +17,9 @@ func PostProcessNotifier(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProc
 		return "", false
 	}
 	for _, dm := range ctx.Domain.GetWeakClusterDomains() {
+		if dm == ctx.Domain.Name() {
+			continue
+		}
 		if uuids, err := dbc.Query.JPGQLCtraQuery(
 			ctx.Domain.CreateObjectIDWithDomain(dm, TYPE_FOLIAGE_APP_ADAPTER, true),
 			".*[l:type('__object')]"); err == nil {

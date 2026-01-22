@@ -108,6 +108,8 @@ func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContex
 		case cmdLshw:
 			vmUUID := ensureVM(dbc, hostID)
 			reconcileLshwVM(dbc, vmUUID, raw)
+			// Send notification about VM to M2 for Node linking
+			notifyVMCreated(dbc, ctx, vmUUID)
 		default:
 			lg.Logf(lg.WarnLevel, "infra.push_update: unknown vm command=%s source_type=%s", command, sourceType)
 		}
@@ -167,4 +169,25 @@ func ensureVM(dbc db.DBSyncClient, hostID string) string {
 	_ = dbc.CMDB.ObjectUpdate(vmUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE)
 	ensureInfraLink(dbc, vmUUID, hostID)
 	return vmUUID
+}
+
+// notifyVMCreated sends a notification to other domains about VM creation for linking.
+func notifyVMCreated(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor, vmUUID string) {
+	vmObj, err := dbc.CMDB.ObjectRead(vmUUID)
+	if err != nil {
+		lg.Logf(lg.WarnLevel, "notifyVMCreated: cannot read VM %s: %v", vmUUID, err)
+		return
+	}
+
+	// Build notification payload with VM data for M2 to match with Nodes
+	notifierPayload := easyjson.NewJSONObject()
+	notifierPayload.SetByPath("domain", easyjson.NewJSON(ctx.Domain.Name()))
+	notifierPayload.SetByPath("id", easyjson.NewJSON(vmUUID))
+	notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE))
+	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_vm"))
+	// Include sources.configuration.uuid for M2 to match with Node's systemUID
+	if cfgUUID := vmObj.GetByPath("body.sources.configuration.uuid").AsStringDefault(""); cfgUUID != "" {
+		notifierPayload.SetByPath("sources.configuration.uuid", easyjson.NewJSON(cfgUUID))
+	}
+	common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
 }
