@@ -22,11 +22,14 @@ import (
 const (
 	postProcessFoliageFunctionName = "function.adapter.dc.post_process"
 	datacenterRootUUID             = "datacenter"
+	statusIsReadyTmpl              = "%s_status_IsReady"
 )
 
 var (
 	// natsURL - nats server url
 	natsURL = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
+	//double from common heartbeat
+	heartbeatInterval = system.GetEnvMustProceed("HEARTBEAT_INTERVAL_SEC", 5) * 2
 )
 
 func adapterUpdateStatus(dbc db.DBSyncClient, domain string) {
@@ -35,7 +38,7 @@ func adapterUpdateStatus(dbc db.DBSyncClient, domain string) {
 	data := easyjson.NewJSONObject()
 	data.SetByPath("updated_at.datetime", easyjson.NewJSON(t.Format("2006-01-02 15:04:05 MST")))
 	data.SetByPath("updated_at.nano", easyjson.NewJSON(t.UnixNano()))
-	data.SetByPath(fmt.Sprintf("%s_status_IsReady", domain), easyjson.NewJSON(true))
+	data.SetByPath(fmt.Sprintf(statusIsReadyTmpl, domain), easyjson.NewJSON(true))
 
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
 }
@@ -93,11 +96,57 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 	adapterUpdateStatus(dbc, weakDomain)
 }
 
+func heartbeat(ctx context.Context, runtime *statefun.Runtime) {
+	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
+	if err != nil {
+		lg.Logln(lg.ErrorLevel, "cannot create db client")
+		return
+	}
+	ticker := time.NewTicker(time.Duration(heartbeatInterval) * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			datacenter, err := dbc.CMDB.ObjectRead(datacenterRootUUID)
+			if err != nil {
+				lg.Logln(lg.ErrorLevel, "cannot read datacenter from db")
+				continue
+			}
+
+			outLinks := datacenter.GetByPath("links.out.ids")
+			for i := 0; i < outLinks.ArraySize(); i++ {
+				linkType := outLinks.ArrayElement(i).AsStringDefault("")
+				if runtime.Domain.GetObjectIDWithoutDomain(linkType) != types.TYPE_FOLIAGE_ADAPTER_DATACENTER {
+					linkName, ok := outLinks.ArrayElement(i).AsString()
+					if !ok {
+						lg.Logf(lg.ErrorLevel, "cannot get link name for object: %s", outLinks.ArrayElement(i))
+						continue
+					}
+					domain, id, err := runtime.Domain.GetShadowObjectDomainAndID(linkName)
+					if err != nil {
+						lg.Logf(lg.ErrorLevel, "cannot get shadow object domain for object: %s", outLinks.ArrayElement(i))
+						continue
+					}
+					idForCheck := runtime.Domain.CreateObjectIDWithDomain(domain, id, true)
+					_, err = dbc.CMDB.ObjectRead(idForCheck)
+					if err != nil {
+						lg.Logf(lg.WarnLevel, "::::::model '%s' is not available from %s", domain, runtime.Domain.Name())
+						payload := easyjson.NewJSONObjectWithKeyValue(fmt.Sprintf(statusIsReadyTmpl, domain), easyjson.NewJSON(false))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, payload, false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
+					}
+				}
+			}
+		}
+	}
+}
+
 func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(runtime, postProcessFoliageFunctionName, postProcess, *statefun.NewFunctionTypeConfig())
 }
 
-func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
+func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
 	if err != nil {
 		return err
@@ -123,6 +172,8 @@ func onAfterStart(_ context.Context, runtime *statefun.Runtime) error {
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL))
 	///
+
+	go heartbeat(ctx, runtime)
 
 	return nil
 }

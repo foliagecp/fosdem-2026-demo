@@ -30,6 +30,7 @@ func HeartBeat(ctx context.Context, runtime *statefun.Runtime, id, _type string)
 	for {
 		select {
 		case <-ctx.Done():
+			return
 		case <-ticker.C:
 			getPostProcessFunction := func(adapterUUID string) (string, bool) {
 				if data, err := dbc.CMDB.ObjectRead(adapterUUID); err == nil {

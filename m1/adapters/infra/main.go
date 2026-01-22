@@ -115,7 +115,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 }
 
 func start() {
-	system.GlobalPrometrics = system.NewPrometrics("", ":19901")
+	system.GlobalPrometrics = system.NewPrometrics("", ":9901")
 	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, apps.APP_AD_INFRA).UseJSDomainAsHubDomainName().SetDomainRoutersHandling(false)); err == nil {
 		registerFunctionTypes(runtime)
 		runtime.RegisterOnAfterStartFunction(onAfterStart, false)
