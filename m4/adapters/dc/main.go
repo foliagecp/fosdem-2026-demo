@@ -17,7 +17,6 @@ import (
 	lg "github.com/foliagecp/sdk/statefun/logger"
 	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
 	"github.com/foliagecp/sdk/statefun/system"
-	"k8s.io/utils/strings/slices"
 )
 
 const (
@@ -69,13 +68,6 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 	}
 
 	if weakDomain != ctx.Domain.Name() {
-
-		if !slices.Contains(ctx.Domain.GetWeakClusterDomains(), weakDomain) {
-			wcd := ctx.Domain.GetWeakClusterDomains()
-			wcd = append(wcd, weakDomain)
-			ctx.Domain.SetWeakClusterDomains(wcd)
-		}
-
 		shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), weakDomain, id)
 
 		objType, ok := payload.GetByPath("type").AsString()
