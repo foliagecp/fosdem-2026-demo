@@ -43,8 +43,6 @@ func PropagateError(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContext
 	propagatePayload.SetByPath("error_time", easyjson.NewJSON(errorTS))
 
 	for _, tag := range ErrorPropagateLinkTags {
-		obj, _ := dbc.CMDB.ObjectsLinkRead(ctx.Self.ID, "m2/ac1c1cbf-ae23-4db3-bd85-cc792369c31f")
-		_ = obj
 		query := fmt.Sprintf(".*[l:tag('%s')]", tag)
 		linkedIDs, err := dbc.Query.JPGQLCtraQuery(ctx.Self.ID, query)
 		if err == nil && len(linkedIDs) > 0 {

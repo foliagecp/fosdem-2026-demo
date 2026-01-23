@@ -81,6 +81,8 @@ func cmdUpdateStatus(runtime *statefun.Runtime) {
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
+	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m3", "m4"})
+
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
 	if err != nil {
 		return err

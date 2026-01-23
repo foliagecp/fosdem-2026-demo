@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	easyjson "github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	lg "github.com/foliagecp/sdk/statefun/logger"
@@ -76,8 +77,8 @@ func reconcileVagrantGlobalStatus(dbc db.DBSyncClient, hypUUID, hostID string, r
 		}
 		_ = dbc.CMDB.ObjectUpdate(vmUUID, upd, false, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE)
 		// Link hypervisor <-> VM.
-		_ = dbc.CMDB.ObjectsLinkUpdate(hypUUID, vmUUID, nil, easyjson.NewJSONObject(), false, vmUUID)
-		_ = dbc.CMDB.ObjectsLinkUpdate(vmUUID, hypUUID, nil, easyjson.NewJSONObject(), false, "hypervisor")
+		_ = dbc.CMDB.ObjectsLinkUpdate(hypUUID, vmUUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, vmUUID)
+		_ = dbc.CMDB.ObjectsLinkUpdate(vmUUID, hypUUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, "hypervisor")
 	}
 
 	count := len(desired)

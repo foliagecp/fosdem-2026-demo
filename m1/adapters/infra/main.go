@@ -70,7 +70,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 
 	// K8s Node type for shadow objects from M2 -------
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_NODE, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_NODE, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, types.TYPE_FOLIAGE_NODE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
 	// ------------------------------------------------
 
 	// Domain links (both directions where needed).

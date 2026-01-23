@@ -256,7 +256,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	// Init K8s types for shadow objects from M2 --------------------
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_POD, easyjson.NewJSONObject(), false, true))
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_DEPLOYMENT, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, types.TYPE_FOLIAGE_POD, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, types.TYPE_FOLIAGE_POD, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, types.TYPE_FOLIAGE_DEPLOYMENT, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_DEPLOYMENT))
 	// ---------------------------------------------------------------
 

@@ -74,7 +74,7 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 				dbc.CMDB.ShadowObjectCanBeRecevier = true
 				system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
 				dbc.CMDB.ShadowObjectCanBeRecevier = false
-				if createShadowLink(dbc, ctx, k8sObject.ID, id, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, weakDomain) {
+				if createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, k8sObject.ID, id, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, weakDomain) {
 					le.Infof(logCtx, "Linked k8s object (type: %s) to shadow Arch Block %s", k8sObject.ObjType, service)
 				}
 			}
@@ -95,7 +95,7 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 				dbc.CMDB.ShadowObjectCanBeRecevier = true
 				system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
 				dbc.CMDB.ShadowObjectCanBeRecevier = false
-				if createShadowLink(dbc, ctx, k8sNode.ID, id, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, weakDomain) {
+				if createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, k8sNode.ID, id, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, weakDomain) {
 					le.Infof(logCtx, "Linked Node %s to shadow VM %s", k8sNode.ID, uuid)
 				}
 			}
@@ -148,14 +148,14 @@ func shadowLinksKeeper(ctx context.Context, dbc db.DBSyncClient, runtime *statef
 	}
 }
 
-func createShadowLink(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor, fromId, toId, toType, targetDomain string) bool {
+func createShadowLink(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor, tags []string, fromId, toId, toType, targetDomain string) bool {
 	shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), targetDomain, ctx.Domain.GetObjectIDWithoutDomain(toId))
 
 	dbc.CMDB.ShadowObjectCanBeRecevier = true
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, toType))
 	dbc.CMDB.ShadowObjectCanBeRecevier = false
 
-	err := dbc.CMDB.ObjectsLinkUpdate(fromId, shadowID, nil, easyjson.NewJSONObject(), false, shadowID)
+	err := dbc.CMDB.ObjectsLinkUpdate(fromId, shadowID, tags, easyjson.NewJSONObject(), false, shadowID)
 
 	return err == nil
 }

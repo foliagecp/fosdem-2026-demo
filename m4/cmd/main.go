@@ -92,6 +92,8 @@ func cmdUpdateStatus(runtime *statefun.Runtime) {
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
+	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m3"})
+
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
 	if err != nil {
 		return err
@@ -99,8 +101,6 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_APP_CMD, easyjson.NewJSONObject(), false, true))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(apps.APP_CMD, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_APP_CMD))
-
-	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m3"})
 
 	go healthyState(ctx)
 	go common.HeartBeat(ctx, runtime, "datacenter", types.TYPE_FOLIAGE_ADAPTER_DATACENTER)

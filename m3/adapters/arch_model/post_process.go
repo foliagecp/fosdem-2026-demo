@@ -143,7 +143,7 @@ func handleK8sObjectSignal(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextPr
 			dbc.CMDB.ShadowObjectCanBeRecevier = false
 
 			// Link ArchBlock → shadow(Pod/Deployment)
-			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(block.ID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID))
+			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(block.ID, shadowID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, shadowID))
 		}
 	}
 }
