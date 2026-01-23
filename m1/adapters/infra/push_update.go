@@ -120,7 +120,7 @@ func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContex
 	notifierPayload.SetByPath("id", easyjson.NewJSON(infraRootUUID))
 	notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_ADAPTER_INFRA))
 	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_model"))
-	common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
+	common.PostProcessNotifier(dbc, ctx, notifierPayload)
 
 	adapterUpdateStatus(dbc)
 }
@@ -189,5 +189,5 @@ func notifyVMCreated(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcesso
 	if cfgUUID := vmObj.GetByPath("body.sources.lshw.configuration.uuid").AsStringDefault(""); cfgUUID != "" {
 		notifierPayload.SetByPath("uuid", easyjson.NewJSON(cfgUUID))
 	}
-	common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
+	common.PostProcessNotifier(dbc, ctx, notifierPayload)
 }

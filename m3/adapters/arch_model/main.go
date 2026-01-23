@@ -70,7 +70,7 @@ func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) 
 	notifierPayload.SetByPath("id", easyjson.NewJSON(modelUUID))
 	notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL))
 	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_model"))
-	common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
+	common.PostProcessNotifier(dbc, ctx, notifierPayload)
 
 	blocksJ := doc.GetByPath("blocks")
 	blocksArr, ok := blocksJ.AsArray()
@@ -122,7 +122,7 @@ func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) 
 		notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK))
 		notifierPayload.SetByPath("operation", easyjson.NewJSON("link_arch_block"))
 		notifierPayload.SetByPath("service", easyjson.NewJSON(serviceName))
-		common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
+		common.PostProcessNotifier(dbc, ctx, notifierPayload)
 
 		if err := dbc.CMDB.ObjectsLinkUpdate(
 			modelUUID,
@@ -256,7 +256,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	// Init K8s types for shadow objects from M2 --------------------
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_POD, easyjson.NewJSONObject(), false, true))
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_DEPLOYMENT, easyjson.NewJSONObject(), false, true))
-	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, types.TYPE_FOLIAGE_POD, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, types.TYPE_FOLIAGE_POD, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, types.TYPE_FOLIAGE_DEPLOYMENT, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_DEPLOYMENT))
 	// ---------------------------------------------------------------
 
@@ -266,6 +266,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m4"})
 
 	go common.HeartBeat(ctx, runtime, archModelRootUUID, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL)
+	go shadowLinksKeeper(ctx, dbc, runtime)
 
 	return nil
 }

@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
 
 COPY ./go.mod ./go.sum ./
 COPY ./m4/common ./m4/common/
+COPY ./common ./common/
 COPY ./m4/adapters/dc ./adapters/dc
 
 RUN cd ./adapters/dc && go build -o /usr/bin/runtime

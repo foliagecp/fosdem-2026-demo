@@ -102,6 +102,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	}()
 
 	go common.HeartBeat(ctx, runtime, k8sInfrastructureRootUUID, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE)
+	go shadowLinksKeeper(ctx, dbc, runtime)
 
 	return nil
 }

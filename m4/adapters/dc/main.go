@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m4/common/apps"
 	"github.com/foliagecp/fosdem-2026-demo/m4/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
@@ -27,9 +28,8 @@ const (
 
 var (
 	// natsURL - nats server url
-	natsURL = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
-	//double from common heartbeat
-	heartbeatInterval = system.GetEnvMustProceed("HEARTBEAT_INTERVAL_SEC", 5) * 2
+	natsURL           = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
+	heartbeatInterval = system.GetEnvMustProceed("HEARTBEAT_INTERVAL_SEC", 11)
 )
 
 func adapterUpdateStatus(dbc db.DBSyncClient, domain string) {
@@ -145,6 +145,7 @@ func heartbeat(ctx context.Context, runtime *statefun.Runtime) {
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(runtime, postProcessFoliageFunctionName, postProcess, *statefun.NewFunctionTypeConfig())
+	statefun.NewFunctionType(runtime, common.PropagateErrorFunctionName, common.PropagateError, *statefun.NewFunctionTypeConfig().SetMultipleInstancesAllowance(true))
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {

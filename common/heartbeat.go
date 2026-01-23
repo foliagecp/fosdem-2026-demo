@@ -12,7 +12,7 @@ import (
 	"github.com/foliagecp/sdk/statefun/system"
 )
 
-var heartbeatInterval = system.GetEnvMustProceed("HEARTBEAT_INTERVAL_SEC", 5)
+var heartbeatInterval = system.GetEnvMustProceed("HEARTBEAT_INTERVAL_SEC", 10)
 
 func HeartBeat(ctx context.Context, runtime *statefun.Runtime, id, _type string) {
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)

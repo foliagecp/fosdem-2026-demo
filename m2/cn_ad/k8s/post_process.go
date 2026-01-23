@@ -3,14 +3,19 @@ package main
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
+	"github.com/foliagecp/sdk/statefun"
 	lg "github.com/foliagecp/sdk/statefun/logger"
 	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
 	"github.com/foliagecp/sdk/statefun/system"
 )
+
+var recalculateShadowLinksIntervalSec = system.GetEnvMustProceed("RECALCULATE_SHADOW_INTERVAL_SEC", 20)
 
 func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	le := lg.GetLogger()
@@ -44,7 +49,7 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		return
 	}
 
-	shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), weakDomain, id)
+	shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), weakDomain, ctx.Domain.GetObjectIDWithoutDomain(id))
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
@@ -54,9 +59,6 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 
 	switch operation {
 	case "link_arch_block":
-		dbc.CMDB.ShadowObjectCanBeRecevier = true
-		system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
-		dbc.CMDB.ShadowObjectCanBeRecevier = false
 		service, ok := payload.GetByPath("service").AsString()
 		if !ok {
 			lg.Logf(lg.ErrorLevel, "cannot get service from payload")
@@ -69,18 +71,18 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		}
 		for _, k8sObject := range k8sObjects {
 			if strings.Contains(k8sObject.ImageName, service) {
+				dbc.CMDB.ShadowObjectCanBeRecevier = true
+				system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
+				dbc.CMDB.ShadowObjectCanBeRecevier = false
 				if createShadowLink(dbc, ctx, k8sObject.ID, id, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, weakDomain) {
 					le.Infof(logCtx, "Linked k8s object (type: %s) to shadow Arch Block %s", k8sObject.ObjType, service)
 				}
 			}
 		}
 	case "link_vm":
-		dbc.CMDB.ShadowObjectCanBeRecevier = true
-		system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
-		dbc.CMDB.ShadowObjectCanBeRecevier = false
 		uuid, ok := payload.GetByPath("uuid").AsString()
 		if !ok {
-			lg.Logf(lg.ErrorLevel, "cannot get uuid from payload")
+			lg.Logf(lg.ErrorLevel, "cannot get uuid from payload %v", payload)
 			return
 		}
 		k8sNodes, err := getNodes(dbc)
@@ -90,6 +92,9 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		}
 		for _, k8sNode := range k8sNodes {
 			if uuid == k8sNode.SystemUID {
+				dbc.CMDB.ShadowObjectCanBeRecevier = true
+				system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
+				dbc.CMDB.ShadowObjectCanBeRecevier = false
 				if createShadowLink(dbc, ctx, k8sNode.ID, id, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, weakDomain) {
 					le.Infof(logCtx, "Linked Node %s to shadow VM %s", k8sNode.ID, uuid)
 				}
@@ -97,6 +102,49 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		}
 	default:
 		//le.Infof(logCtx, "operation '%s' is not supported", operation)
+	}
+}
+
+func shadowLinksKeeper(ctx context.Context, dbc db.DBSyncClient, runtime *statefun.Runtime) {
+	ticker := time.NewTicker(time.Duration(recalculateShadowLinksIntervalSec) * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			var uidsForLink []easyjson.JSON
+			nodes, err := getNodes(dbc)
+			if err == nil {
+				for _, node := range nodes {
+					notifierPayload := easyjson.NewJSONObject()
+					notifierPayload.SetByPath("domain", easyjson.NewJSON(runtime.Domain.Name()))
+					notifierPayload.SetByPath("UID", easyjson.NewJSON(runtime.Domain.GetObjectIDWithoutDomain(node.ID)))
+					notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_NODE))
+					notifierPayload.SetByPath("operation", easyjson.NewJSON("add"))
+					notifierPayload.SetByPath("systemUID", easyjson.NewJSON(node.SystemUID))
+					uidsForLink = append(uidsForLink, notifierPayload)
+				}
+			}
+			k8sObjects, err := getK8sObjects(dbc)
+			if err == nil {
+				for _, k8sObject := range k8sObjects {
+					notifierPayload := easyjson.NewJSONObject()
+					notifierPayload.SetByPath("domain", easyjson.NewJSON(runtime.Domain.Name()))
+					notifierPayload.SetByPath("UID", easyjson.NewJSON(runtime.Domain.GetObjectIDWithoutDomain(k8sObject.ID)))
+					notifierPayload.SetByPath("operation", easyjson.NewJSON("add"))
+					notifierPayload.SetByPath("containersImage", easyjson.NewJSON(k8sObject.ImageName))
+					switch k8sObject.ObjType {
+					case types.TYPE_FOLIAGE_POD:
+						notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_POD))
+					case types.TYPE_FOLIAGE_DEPLOYMENT:
+						notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_DEPLOYMENT))
+					}
+					uidsForLink = append(uidsForLink, notifierPayload)
+				}
+			}
+			common.NotifyAdapters(runtime, dbc, uidsForLink...)
+		}
 	}
 }
 

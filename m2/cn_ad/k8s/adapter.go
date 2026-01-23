@@ -134,8 +134,8 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				if ok {
 					nodeID, ok := nodesNameMap[nodeName]
 					if ok {
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, nodeID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, nodeID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
 					}
 				}
 				ownerKind, ok := pod.ReqReply.GetByPath("data.body.ownerKind").AsString()
@@ -190,7 +190,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 	notifierPayload.SetByPath("id", easyjson.NewJSON(ctx.Domain.GetObjectIDWithoutDomain(ctx.Self.ID)))
 	notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
 	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_model"))
-	common.PostProcessNotifier(dbc, ctx, notifierPayload.GetPtr())
+	common.PostProcessNotifier(dbc, ctx, notifierPayload)
 	adapterUpdateStatus(dbc)
 }
 

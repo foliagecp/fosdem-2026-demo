@@ -338,21 +338,36 @@ func (w *Watcher) rebuild() {
 }
 
 func (w *Watcher) notifyAdapters(body *easyjson.JSON) {
+	le := lg.GetLogger()
+	logCtx := context.Background()
+
 	getPostProcessFunction := func(adapterUUID string) (string, bool) {
 		if data, err := w.dbc.CMDB.ObjectRead(adapterUUID); err == nil {
 			return data.GetByPath("body.post_process_function").AsString()
 		}
 		return "", false
 	}
-	for _, dm := range w.runtime.Domain.GetWeakClusterDomains() {
+
+	domains := w.runtime.Domain.GetWeakClusterDomains()
+
+	for _, dm := range domains {
 		if dm == w.runtime.Domain.Name() {
 			continue
 		}
-		if uuids, err := w.dbc.Query.JPGQLCtraQuery(w.runtime.Domain.CreateObjectIDWithDomain(dm, types.TYPE_FOLIAGE_APP_ADAPTER, true), ".*[l:type('__object')]"); err == nil {
-			for _, uuid := range uuids {
-				if typename, ok := getPostProcessFunction(uuid); ok {
-					system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, typename, uuid, body, nil))
-				}
+
+		typeID := w.runtime.Domain.CreateObjectIDWithDomain(dm, types.TYPE_FOLIAGE_APP_ADAPTER, true)
+
+		uuids, err := w.dbc.Query.JPGQLCtraQuery(typeID, ".*[l:type('__object')]")
+		if err != nil {
+			le.Errorf(logCtx, "notifyAdapters: query failed for domain %s: %v", dm, err)
+			continue
+		}
+
+		for _, uuid := range uuids {
+			if typename, ok := getPostProcessFunction(uuid); ok {
+				system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, typename, uuid, body, nil))
+			} else {
+				le.Debugf(logCtx, "notifyAdapters: no post_process_function for adapter %s", uuid)
 			}
 		}
 	}
