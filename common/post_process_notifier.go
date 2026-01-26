@@ -67,8 +67,6 @@ func NotifyAdapters(runtime *statefun.Runtime, dbc db.DBSyncClient, payloads ...
 				for _, pl := range payloads {
 					system.MsgOnErrorReturn(runtime.Signal(sfPlugins.AutoSignalSelect, typename, uuid, pl.GetPtr(), nil))
 				}
-			} else {
-				le.Debugf(logCtx, "notifyAdapters: no post_process_function for adapter %s", uuid)
 			}
 		}
 	}

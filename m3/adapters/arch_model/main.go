@@ -212,7 +212,7 @@ func pushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProc
 			}
 		}
 	} else {
-		lg.Logln(lg.DebugLevel, "recevied push update signal, but ignored – waiting for %s but called by %s", apps.APP_CN_JSON_FILE, ctx.Caller.ID)
+		lg.Logln(lg.DebugLevel, "received push update signal, but ignored – waiting for %s but called by %s", apps.APP_CN_JSON_FILE, ctx.Caller.ID)
 	}
 	// --------------------------------------------------------------
 

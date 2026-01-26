@@ -81,7 +81,7 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 		dbc.CMDB.ShadowObjectCanBeRecevier = false
 
 		if err = dbc.CMDB.ObjectsLinkUpdate(datacenterRootUUID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID); err != nil {
-			lg.Logf(lg.InfoLevel, "Linked datacenter to shadow: %s -> %s", datacenterRootUUID, shadowID)
+			lg.Logf(lg.InfoLevel, "Linked datacenter to shadow model root object: %s -> %s", datacenterRootUUID, shadowID)
 		}
 	}
 

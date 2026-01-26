@@ -45,6 +45,9 @@ func reconcileLshwGeneric(dbc db.DBSyncClient, parentUUID, parentType string, ra
 
 	// IP address can be present in a network node configuration.
 	if ip := strings.TrimSpace(firstIP(raw)); ip != "" {
+		if strings.HasPrefix(ip, _prefix) {
+			ip = _ip
+		}
 		upd.SetByPath("summary.detected_ip", easyjson.NewJSON(ip))
 	}
 
@@ -60,6 +63,7 @@ func reconcileLshwGeneric(dbc db.DBSyncClient, parentUUID, parentType string, ra
 		vupd := easyjson.NewJSONObject()
 		vupd.SetByPath("summary.virtualization.vmx", easyjson.NewJSON(vmx))
 		vupd.SetByPath("summary.virtualization.svm", easyjson.NewJSON(svm))
+		vupd.SetByPath("summary.server_virtualization_technology", easyjson.NewJSON(typeOfVirtualization(vmx, svm)))
 		_ = dbc.CMDB.ObjectUpdate(parentUUID, vupd, false, parentType)
 	}
 

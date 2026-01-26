@@ -69,19 +69,11 @@ func propagateToLinked(ctx *sfPlugins.StatefunContextProcessor, linkedIDs []stri
 		if linkedID == ctx.Self.ID || strings.HasSuffix(linkedID, ctx.Self.ID) {
 			continue
 		}
-		if ctx.Domain.IsShadowObject(linkedID) {
-			dm, id, err := ctx.Domain.GetShadowObjectDomainAndID(linkedID)
-			if err != nil {
-				lg.Logf(lg.ErrorLevel, "Cant get shadow domain and id from %s: %s", linkedID, err.Error())
-				continue
-			}
-			linkedID = ctx.Domain.CreateObjectIDWithDomain(dm, id, true)
-		}
 
 		system.MsgOnErrorReturn(ctx.Signal(
 			sfPlugins.AutoSignalSelect,
 			PropagateErrorFunctionName,
-			linkedID,
+			ctx.Domain.GetObjectIDByShadowObjectID(linkedID),
 			nil,
 			nil,
 		))

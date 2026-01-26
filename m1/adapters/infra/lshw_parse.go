@@ -121,3 +121,13 @@ func cpuHasVirt(cpu easyjson.JSON) (vmx bool, svm bool) {
 	}
 	return
 }
+
+func typeOfVirtualization(vmx, svm bool) string {
+	if vmx && !svm {
+		return "vmx"
+	} else if svm && !vmx {
+		return "svm"
+	} else {
+		return "undefined"
+	}
+}

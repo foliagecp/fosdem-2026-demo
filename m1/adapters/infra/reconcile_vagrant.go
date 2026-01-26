@@ -50,7 +50,9 @@ func reconcileVagrantGlobalStatus(dbc db.DBSyncClient, hypUUID, hostID string, r
 		vm := easyjson.NewJSON(item)
 		vmHostID := strings.TrimSpace(vm.GetByPath("id").AsStringDefault(""))
 		vmUUID := ensureVM(dbc, vmHostID)
+		//if slices.Contains(vmDemoSlice, vm.GetByPath("name").AsStringDefault("")) {
 		desired[vmUUID] = vm
+		//}
 	}
 
 	// Delete stale VMs linked under this hypervisor.

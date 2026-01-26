@@ -79,7 +79,7 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 					tags = common.ErrorPropagateLinkTags
 				}
 				if createShadowLink(dbc, ctx, tags, k8sObject.ID, id, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, weakDomain) {
-					le.Infof(logCtx, "Linked k8s object (type: %s) to shadow Arch Block %s", k8sObject.ObjType, service)
+					le.Infof(logCtx, "Linked k8s object %s (type: %s) to shadow Arch Block %s", k8sObject.ID, k8sObject.ObjType, service)
 				}
 			}
 		}
