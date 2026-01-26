@@ -163,8 +163,9 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				case nodeKind:
 				}
 			}
-			if pod.ReqReply.PathExists("data.error") {
-				//TODO run signal error distribute
+			if errorOnPod := pod.ReqReply.GetByPath("data.error").AsBoolDefault(false); errorOnPod {
+				le.Debugf(logCtx, "propagate error from pod: %s", podID)
+				system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, common.PropagateErrorFunctionName, podID, nil, nil))
 			}
 		}
 		for replicasetID, replicaSet := range replicasets {
