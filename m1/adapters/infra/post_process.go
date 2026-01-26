@@ -168,8 +168,6 @@ func getVirtualMachines(dbc db.DBSyncClient) ([]VirtualMachine, error) {
 				ProductUUID: productUUID,
 			})
 		}
-
 	}
-
 	return vms, nil
 }
