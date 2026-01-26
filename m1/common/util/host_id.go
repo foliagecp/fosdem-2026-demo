@@ -3,8 +3,8 @@ package util
 import "strings"
 
 func GetSafeName(name string) string {
-	if strings.HasPrefix(name, prefix) {
-		name = demoIp
+	if strings.HasPrefix(name, Prefix) {
+		name = DemoIp
 	}
 	return strings.ReplaceAll(strings.TrimSpace(name), ".", "_")
 }
@@ -20,5 +20,5 @@ var VmDemoSlice = []string{
 	"sticky-snake-4",
 }
 
-const demoIp = "2.54.24.203"
-const prefix = "176.114"
+const DemoIp = "2.54.24.203"
+const Prefix = "176.114"

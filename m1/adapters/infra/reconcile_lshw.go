@@ -6,6 +6,7 @@ import (
 
 	easyjson "github.com/foliagecp/easyjson"
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/types"
+	"github.com/foliagecp/fosdem-2026-demo/m1/common/util"
 	"github.com/foliagecp/sdk/clients/go/db"
 )
 
@@ -45,8 +46,8 @@ func reconcileLshwGeneric(dbc db.DBSyncClient, parentUUID, parentType string, ra
 
 	// IP address can be present in a network node configuration.
 	if ip := strings.TrimSpace(firstIP(raw)); ip != "" {
-		if strings.HasPrefix(ip, _prefix) {
-			ip = _ip
+		if strings.HasPrefix(ip, util.Prefix) {
+			ip = util.DemoIp
 		}
 		upd.SetByPath("summary.detected_ip", easyjson.NewJSON(ip))
 	}
