@@ -74,7 +74,11 @@ func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextPro
 				dbc.CMDB.ShadowObjectCanBeRecevier = true
 				system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
 				dbc.CMDB.ShadowObjectCanBeRecevier = false
-				if createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, k8sObject.ID, id, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, weakDomain) {
+				var tags []string
+				if k8sObject.ObjType == types.TYPE_FOLIAGE_POD {
+					tags = common.ErrorPropagateLinkTags
+				}
+				if createShadowLink(dbc, ctx, tags, k8sObject.ID, id, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, weakDomain) {
 					le.Infof(logCtx, "Linked k8s object (type: %s) to shadow Arch Block %s", k8sObject.ObjType, service)
 				}
 			}

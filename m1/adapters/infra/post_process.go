@@ -136,7 +136,7 @@ func handleNodeSignal(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcess
 			system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, types.TYPE_FOLIAGE_NODE))
 			dbc.CMDB.ShadowObjectCanBeRecevier = false
 
-			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(vm.ID, shadowID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, shadowID))
+			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(vm.ID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID))
 
 		}
 	}

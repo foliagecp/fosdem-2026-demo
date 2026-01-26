@@ -6,62 +6,83 @@ import (
 
 	"github.com/foliagecp/easyjson"
 	"github.com/foliagecp/sdk/clients/go/db"
+	lg "github.com/foliagecp/sdk/statefun/logger"
 	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
 	"github.com/foliagecp/sdk/statefun/system"
 )
 
-var ErrorPropagateLinkTags = []string{"__error"}
+var ErrorPropagateLinkTags = []string{"__error_propagate"}
 
 const PropagateErrorFunctionName = "functions.common.propagate_error"
 
+// "error" bool
+// "error_distribution" bool
+// "__error_timestamp_nano" int
+
 func PropagateError(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
-	errorMsg := ctx.Payload.GetByPath("error_msg").AsStringDefault("unknown error")
-	errorTS, ok := ctx.Payload.GetByPath("error_time").AsNumeric()
+	lg.Logf(lg.DebugLevel, "PropagateError() called on: %v", ctx.Self.ID)
+	var errorTS int64
+	errorTSFloat, ok := ctx.Payload.GetByPath("body.__error_timestamp_nano").AsNumeric()
 	if !ok {
-		errorTS = float64(system.GetCurrentTimeNs())
+		errorTS = system.GetCurrentTimeNs()
+	} else {
+		errorTS = int64(errorTSFloat)
 	}
 
-	objectContext := ctx.GetObjectContext()
-	if objectContext.PathExists("error") {
-		existingTS := objectContext.GetByPath("error.timestamp").AsNumericDefault(0)
-		if existingTS >= errorTS {
+	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
+	if err != nil {
+		lg.Logf(lg.ErrorLevel, "Error propagating error: %s", err.Error())
+		return
+	}
+
+	currentObject, err := dbc.CMDB.ObjectRead(ctx.Self.ID)
+	if err != nil {
+		lg.Logf(lg.ErrorLevel, "Error propagating error: %s", err.Error())
+		return
+	}
+
+	if currentObject.PathExists("body.error") || currentObject.PathExists("body.error_distribution") {
+		existingTSFloat := currentObject.GetByPath("body.__error_timestamp_nano").AsNumericDefault(0)
+		if int64(existingTSFloat) >= errorTS {
 			return
 		}
 	}
 
-	objectContext.SetByPath("error.timestamp", easyjson.NewJSON(errorTS))
-	objectContext.SetByPath("error.message", easyjson.NewJSON(errorMsg))
-	ctx.SetObjectContext(objectContext)
-
-	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
-	if err != nil {
-		return
-	}
-
-	propagatePayload := easyjson.NewJSONObject()
-	propagatePayload.SetByPath("error_msg", easyjson.NewJSON(errorMsg))
-	propagatePayload.SetByPath("error_time", easyjson.NewJSON(errorTS))
+	propagateErrorPayload := easyjson.NewJSONObject()
+	propagateErrorPayload.SetByPath("error_distribution", easyjson.NewJSON(true))
+	propagateErrorPayload.SetByPath("__error_timestamp_nano", easyjson.NewJSON(errorTS))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(ctx.Self.ID, propagateErrorPayload, false))
 
 	for _, tag := range ErrorPropagateLinkTags {
-		query := fmt.Sprintf(".*[l:tag('%s')]", tag)
+		query := fmt.Sprintf(".*[l:tags('%s')]", tag)
 		linkedIDs, err := dbc.Query.JPGQLCtraQuery(ctx.Self.ID, query)
+		lg.Logf(lg.DebugLevel, "PropagateError: linkedIDs: %v", linkedIDs)
 		if err == nil && len(linkedIDs) > 0 {
-			propagateToLinked(ctx, linkedIDs, &propagatePayload)
+			propagateToLinked(ctx, linkedIDs)
 			return
 		}
 	}
 }
 
-func propagateToLinked(ctx *sfPlugins.StatefunContextProcessor, linkedIDs []string, payload *easyjson.JSON) {
+func propagateToLinked(ctx *sfPlugins.StatefunContextProcessor, linkedIDs []string) {
 	for _, linkedID := range linkedIDs {
 		if linkedID == ctx.Self.ID || strings.HasSuffix(linkedID, ctx.Self.ID) {
 			continue
 		}
+		if ctx.Domain.IsShadowObject(linkedID) {
+			dm, id, err := ctx.Domain.GetShadowObjectDomainAndID(linkedID)
+			if err != nil {
+				lg.Logf(lg.ErrorLevel, "Cant get shadow domain and id from %s: %s", linkedID, err.Error())
+				continue
+			}
+			linkedID = ctx.Domain.CreateObjectIDWithDomain(dm, id, true)
+		}
+
 		system.MsgOnErrorReturn(ctx.Signal(
 			sfPlugins.AutoSignalSelect,
 			PropagateErrorFunctionName,
 			linkedID,
-			payload,
+			nil,
 			nil,
 		))
 	}

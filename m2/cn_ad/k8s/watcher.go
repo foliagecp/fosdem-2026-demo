@@ -298,6 +298,11 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.k8sInfrastructureID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
 	}
 
+	//propagate error
+	if body.PathExists("error") {
+		system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, propagateErrorFnName, objID, nil, nil))
+	}
+
 	w.markDirty()
 }
 

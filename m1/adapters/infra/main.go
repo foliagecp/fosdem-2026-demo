@@ -34,6 +34,7 @@ var (
 func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(runtime, pushUpdateFnName, infraPushUpdate, *statefun.NewFunctionTypeConfig())
 	statefun.NewFunctionType(runtime, postProcessingFnName, infraPostProcess, *statefun.NewFunctionTypeConfig())
+	statefun.NewFunctionType(runtime, common.PropagateErrorFunctionName, common.PropagateError, *statefun.NewFunctionTypeConfig().SetMultipleInstancesAllowance(true))
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {

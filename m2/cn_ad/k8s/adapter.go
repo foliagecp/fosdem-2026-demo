@@ -135,7 +135,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 					nodeID, ok := nodesNameMap[nodeName]
 					if ok {
 						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, nodeID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
 					}
 				}
 				ownerKind, ok := pod.ReqReply.GetByPath("data.body.ownerKind").AsString()

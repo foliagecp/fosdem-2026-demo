@@ -77,7 +77,7 @@ func reconcileVagrantGlobalStatus(dbc db.DBSyncClient, hypUUID, hostID string, r
 		}
 		_ = dbc.CMDB.ObjectUpdate(vmUUID, upd, false, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE)
 		// Link hypervisor <-> VM.
-		_ = dbc.CMDB.ObjectsLinkUpdate(hypUUID, vmUUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, vmUUID)
+		_ = dbc.CMDB.ObjectsLinkUpdate(hypUUID, vmUUID, nil, easyjson.NewJSONObject(), false, vmUUID)
 		_ = dbc.CMDB.ObjectsLinkUpdate(vmUUID, hypUUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, "hypervisor")
 	}
 

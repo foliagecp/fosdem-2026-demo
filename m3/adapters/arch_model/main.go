@@ -232,6 +232,7 @@ func adapterUpdateStatus(dbc db.DBSyncClient) {
 func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(runtime, pushUpdateFoliageFunctionName, pushUpdate, *statefun.NewFunctionTypeConfig())
 	statefun.NewFunctionType(runtime, postProcessFnName, archModelPostProcess, *statefun.NewFunctionTypeConfig())
+	statefun.NewFunctionType(runtime, common.PropagateErrorFunctionName, common.PropagateError, *statefun.NewFunctionTypeConfig().SetMultipleInstancesAllowance(true))
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
