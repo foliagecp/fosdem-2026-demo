@@ -134,7 +134,7 @@ func handleK8sObjectSignal(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextPr
 	}
 
 	for _, block := range archBlocks {
-		if strings.Contains(imageName, block.ServiceName) || strings.Contains(block.ServiceName, imageName) {
+		if strings.Contains(imageName, block.ServiceName) {
 			// Create shadow K8s object
 			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), domain, ctx.Domain.GetObjectIDWithoutDomain(uid))
 
@@ -150,7 +150,6 @@ func handleK8sObjectSignal(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextPr
 
 type ArchBlock struct {
 	ID          string
-	Name        string
 	ServiceName string
 }
 
@@ -168,15 +167,14 @@ func getArchBlocks(dbc db.DBSyncClient) ([]ArchBlock, error) {
 			continue
 		}
 
-		name := objData.GetByPath("body.name").AsStringDefault("")
-		serviceName := objData.GetByPath("body.details.service").AsStringDefault("")
-		if serviceName == "" {
-			serviceName = strings.ToLower(name)
+		serviceName, ok := objData.GetByPath("body.service").AsString()
+		if !ok {
+			lg.Logf(lg.ErrorLevel, "cant get field service from arch block: %s", blockID)
+			continue
 		}
 
 		blocks = append(blocks, ArchBlock{
 			ID:          blockID,
-			Name:        name,
 			ServiceName: strings.ToLower(serviceName),
 		})
 	}
