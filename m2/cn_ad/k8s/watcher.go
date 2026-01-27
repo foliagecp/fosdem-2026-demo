@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	"github.com/foliagecp/sdk/statefun"
@@ -295,7 +296,7 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 
 	//propagate error
 	if body.PathExists("error.error") {
-		system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, propagateErrorFnName, objID, nil, nil))
+		system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, common.PropagateErrorFunctionName, objID, nil, nil))
 	}
 
 	w.markDirty()
