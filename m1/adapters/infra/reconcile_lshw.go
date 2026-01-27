@@ -22,7 +22,7 @@ func reconcileLshwVM(dbc db.DBSyncClient, vmUUID string, raw easyjson.JSON) {
 func reconcileLshwGeneric(dbc db.DBSyncClient, parentUUID, parentType string, raw easyjson.JSON) {
 	// Persist raw snapshot for debugging.
 	upd := easyjson.NewJSONObject()
-	upd.SetByPath("sources.lshw", raw)
+	//upd.SetByPath("sources.lshw", raw)
 
 	// Best-effort hostname / system id.
 	if id := strings.TrimSpace(raw.GetByPath("id").AsStringDefault("")); id != "" {
