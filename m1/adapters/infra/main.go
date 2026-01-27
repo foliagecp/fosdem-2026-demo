@@ -105,10 +105,8 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	// Root object.
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(infraRootUUID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_INFRA))
 
-	go common.HeartBeat(ctx, runtime, infraRootUUID, types.TYPE_FOLIAGE_ADAPTER_INFRA)
-	go shadowLinksKeeper(ctx, dbc, runtime)
 	// Set weak cluster domains to connect to M2 ------
-	runtime.Domain.SetWeakClusterDomains([]string{"m2", "m3", "m4"})
+	runtime.Domain.SetWeakClusterDomains([]string{common.ModelM2, common.ModelM3, common.ModelM4})
 	// ------------------------------------------------
 
 	return nil

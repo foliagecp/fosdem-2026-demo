@@ -10,6 +10,7 @@ import (
 	"time"
 
 	easyjson "github.com/foliagecp/easyjson"
+	common "github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/apps"
 	"github.com/foliagecp/fosdem-2026-demo/m1/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
@@ -82,7 +83,7 @@ func cmdUpdateStatus(runtime *statefun.Runtime) {
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
-	runtime.Domain.SetWeakClusterDomains([]string{"m2", "m3", "m4"})
+	runtime.Domain.SetWeakClusterDomains([]string{common.ModelM2, common.ModelM3, common.ModelM4})
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
 	if err != nil {
 		return err

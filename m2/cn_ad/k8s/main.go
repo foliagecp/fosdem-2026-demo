@@ -95,15 +95,12 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 		return err
 	}
 
-	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m3", "m4"})
+	runtime.Domain.SetWeakClusterDomains([]string{common.ModelM1, common.ModelM3, common.ModelM4})
 
 	go func() {
 		<-ctx.Done()
 		close(stopCh)
 	}()
-
-	go common.HeartBeat(ctx, runtime, k8sInfrastructureRootUUID, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE)
-	go shadowLinksKeeper(ctx, dbc, runtime)
 
 	return nil
 }
@@ -140,7 +137,7 @@ func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(
 		runtime,
 		postProcessFnName,
-		postProcess,
+		k8sInfrastructurePostProcess,
 		*statefun.NewFunctionTypeConfig().SetAllowedSignalProviders(sfPlugins.AutoSignalSelect),
 	)
 	statefun.NewFunctionType(

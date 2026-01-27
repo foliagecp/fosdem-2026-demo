@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
 
 COPY ./go.mod ./go.sum ./
 COPY ./m1/common ./m1/common/
+COPY ./common ./common/
 COPY ./m1/cmd ./cmd
 
 RUN cd ./cmd && go build -o /usr/bin/runtime

@@ -13,7 +13,7 @@ import (
 
 const TYPE_FOLIAGE_APP_ADAPTER = "foliage-app-adapter"
 
-func PostProcessNotifier(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor, payloads ...easyjson.JSON) {
+func PostProcessNotifier(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor) {
 	getPostProcessFunction := func(adapterUUID string) (string, bool) {
 		if data, err := dbc.CMDB.ObjectRead(adapterUUID); err == nil {
 			return data.GetByPath("body.post_process_function").AsString()
@@ -26,12 +26,11 @@ func PostProcessNotifier(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProc
 		}
 		if uuids, err := dbc.Query.JPGQLCtraQuery(
 			ctx.Domain.CreateObjectIDWithDomain(dm, TYPE_FOLIAGE_APP_ADAPTER, true),
-			".*[l:type('__object')]"); err == nil {
+			AllObjectsQuery); err == nil {
 			for _, uuid := range uuids {
-				if typename, ok := getPostProcessFunction(uuid); ok && len(payloads) > 0 {
-					for _, payload := range payloads {
-						system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, typename, uuid, payload.GetPtr(), nil))
-					}
+				if typename, ok := getPostProcessFunction(uuid); ok {
+					system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, typename, uuid, nil, nil))
+
 				}
 			}
 		}

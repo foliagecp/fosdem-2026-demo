@@ -65,13 +65,6 @@ func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) 
 		return fmt.Errorf("ObjectUpdate failed for model %q: %w", modelName, err)
 	}
 
-	notifierPayload := easyjson.NewJSONObject()
-	notifierPayload.SetByPath("domain", easyjson.NewJSON(ctx.Domain.Name()))
-	notifierPayload.SetByPath("id", easyjson.NewJSON(modelUUID))
-	notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL))
-	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_model"))
-	common.PostProcessNotifier(dbc, ctx, notifierPayload)
-
 	blocksJ := doc.GetByPath("blocks")
 	blocksArr, ok := blocksJ.AsArray()
 	if !ok {
@@ -109,21 +102,6 @@ func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) 
 		); err != nil {
 			return fmt.Errorf("ObjectUpdate failed for block %q: %w", name, err)
 		}
-
-		// Get service name for matching with K8s objects
-		serviceName := details.GetByPath("service").AsStringDefault("")
-		if serviceName == "" {
-			serviceName = strings.ToLower(name)
-		}
-
-		notifierPayload := easyjson.NewJSONObject()
-		notifierPayload.SetByPath("domain", easyjson.NewJSON(ctx.Domain.Name()))
-		notifierPayload.SetByPath("id", easyjson.NewJSON(id))
-		notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK))
-		notifierPayload.SetByPath("operation", easyjson.NewJSON("link_arch_block"))
-		notifierPayload.SetByPath("service", easyjson.NewJSON(serviceName))
-		common.PostProcessNotifier(dbc, ctx, notifierPayload)
-
 		if err := dbc.CMDB.ObjectsLinkUpdate(
 			modelUUID,
 			id,
@@ -186,6 +164,8 @@ func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) 
 			}
 		}
 	}
+
+	system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, postProcessFnName, ctx.Self.ID, nil, nil))
 
 	return nil
 }
@@ -264,10 +244,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK))
 
-	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m4"})
-
-	go common.HeartBeat(ctx, runtime, archModelRootUUID, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL)
-	go shadowLinksKeeper(ctx, dbc, runtime)
+	runtime.Domain.SetWeakClusterDomains([]string{common.ModelM1, common.ModelM2, common.ModelM4})
 
 	return nil
 }

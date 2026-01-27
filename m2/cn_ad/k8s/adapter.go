@@ -134,8 +134,8 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				if ok {
 					nodeID, ok := nodesNameMap[nodeName]
 					if ok {
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, nodeID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, nodeID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, nodeID))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, nil, easyjson.NewJSONObject(), false, podID))
 					}
 				}
 				ownerKind, ok := pod.ReqReply.GetByPath("data.body.ownerKind").AsString()
@@ -151,13 +151,13 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				switch ownerKind {
 				case deploymentKind:
 					if _, ok = deployments[ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false)]; ok {
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_DEPLOYMENT))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, ownerUID))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, podID))
 					}
 				case replicaSetKind:
 					if _, ok = replicasets[ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false)]; ok {
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_REPLICATION_SET))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_POD))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, ownerUID))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, podID))
 					}
 				case daemonSetKind:
 				case nodeKind:
@@ -186,13 +186,8 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 		system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(clusterID, clusterBody, false))
 	}
 
-	notifierPayload := easyjson.NewJSONObject()
-	notifierPayload.SetByPath("domain", easyjson.NewJSON(ctx.Domain.Name()))
-	notifierPayload.SetByPath("id", easyjson.NewJSON(ctx.Domain.GetObjectIDWithoutDomain(ctx.Self.ID)))
-	notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
-	notifierPayload.SetByPath("operation", easyjson.NewJSON("link_model"))
-	common.PostProcessNotifier(dbc, ctx, notifierPayload)
 	adapterUpdateStatus(dbc)
+	system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, postProcessFnName, ctx.Self.ID, nil, nil))
 }
 
 func status(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {

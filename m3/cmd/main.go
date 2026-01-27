@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m3/common/apps"
 	"github.com/foliagecp/fosdem-2026-demo/m3/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
@@ -92,7 +93,7 @@ func cmdUpdateStatus(runtime *statefun.Runtime) {
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
-	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m4"})
+	runtime.Domain.SetWeakClusterDomains([]string{common.ModelM1, common.ModelM2, common.ModelM4})
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
 	if err != nil {
 		return err

@@ -22,117 +22,57 @@ import (
 const (
 	postProcessFoliageFunctionName = "function.adapter.dc.post_process"
 	datacenterRootUUID             = "datacenter"
-	statusIsReadyTmpl              = "%s_status_IsReady"
+	linkedModelTag                 = "linked_model"
+	statusReadyTmpl                = "%s_status_IsReady"
 )
 
 var (
 	// natsURL - nats server url
-	natsURL           = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
-	heartbeatInterval = system.GetEnvMustProceed("HEARTBEAT_INTERVAL_SEC", 11)
+	natsURL = system.GetEnvMustProceed("NATS_URL", "nats://nats:foliage@nats:4222")
 )
 
-func adapterUpdateStatus(dbc db.DBSyncClient, domain string) {
+func adapterUpdateStatus(dbc db.DBSyncClient, data easyjson.JSON) {
 	t := time.Now()
 
-	data := easyjson.NewJSONObject()
 	data.SetByPath("updated_at.datetime", easyjson.NewJSON(t.Format("2006-01-02 15:04:05 MST")))
 	data.SetByPath("updated_at.nano", easyjson.NewJSON(t.UnixNano()))
-	data.SetByPath(fmt.Sprintf(statusIsReadyTmpl, domain), easyjson.NewJSON(true))
+	data.SetByPath("m4_status_IsReady", easyjson.NewJSON(true))
 
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, data, false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
 }
 
-func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
-	payload := ctx.Payload
-	if operation := payload.GetByPath("operation").AsStringDefault(""); operation != "link_model" {
-		//lg.Logf(lg.InfoLevel, "skip post process operation '%s'", operation)
-		return
-	}
+func datacenterPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+	le := lg.GetLogger()
+	logCtx := context.Background()
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
-		lg.Logln(lg.ErrorLevel, "cannot create db client")
+		le.Errorf(logCtx, "datacenterPostProcess: cannot create db client: %v", err)
 		return
 	}
 
-	id, ok := payload.GetByPath("id").AsString()
-	if !ok {
-		lg.Logf(lg.ErrorLevel, "cannot get id from payload")
-		return
-	}
-
-	weakDomain, ok := payload.GetByPath("domain").AsString()
-	if !ok {
-		lg.Logf(lg.ErrorLevel, "cannot get domain from object: %s", id)
-		return
-	}
-
-	if weakDomain != ctx.Domain.Name() {
-		shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), weakDomain, id)
-
-		objType, ok := payload.GetByPath("type").AsString()
-		if !ok {
-			lg.Logf(lg.WarnLevel, "cannot get domain from object: %s", id)
-			return
-		}
-
-		dbc.CMDB.ShadowObjectCanBeRecevier = true
-		system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, objType))
-		dbc.CMDB.ShadowObjectCanBeRecevier = false
-
-		if err = dbc.CMDB.ObjectsLinkUpdate(datacenterRootUUID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID); err != nil {
-			lg.Logf(lg.InfoLevel, "Linked datacenter to shadow model root object: %s -> %s", datacenterRootUUID, shadowID)
-		}
-	}
-
-	adapterUpdateStatus(dbc, weakDomain)
-}
-
-func heartbeat(ctx context.Context, runtime *statefun.Runtime) {
-	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
+	query := fmt.Sprintf(".*[l:tags('%s')]", linkedModelTag)
+	linkedIDs, err := dbc.Query.JPGQLCtraQuery(datacenterRootUUID, query)
 	if err != nil {
-		lg.Logln(lg.ErrorLevel, "cannot create db client")
-		return
+		le.Errorf(logCtx, "datacenterPostProcess: cannot query linked models datacenters: %v", err)
 	}
-	ticker := time.NewTicker(time.Duration(heartbeatInterval) * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			datacenter, err := dbc.CMDB.ObjectRead(datacenterRootUUID)
-			if err != nil {
-				lg.Logln(lg.ErrorLevel, "cannot read datacenter from db")
-				continue
-			}
 
-			outLinks := datacenter.GetByPath("links.out.ids")
-			for i := 0; i < outLinks.ArraySize(); i++ {
-				linkType := outLinks.ArrayElement(i).AsStringDefault("")
-				if runtime.Domain.GetObjectIDWithoutDomain(linkType) != types.TYPE_FOLIAGE_ADAPTER_DATACENTER {
-					linkName, ok := outLinks.ArrayElement(i).AsString()
-					if !ok {
-						lg.Logf(lg.ErrorLevel, "cannot get link name for object: %s", outLinks.ArrayElement(i))
-						continue
-					}
-					id := runtime.Domain.GetObjectIDByShadowObjectID(linkName)
-					_, err = dbc.CMDB.ObjectRead(id)
-					if err != nil {
-						domain := runtime.Domain.GetDomainFromObjectID(id)
-						lg.Logf(lg.WarnLevel, "::::::model '%s' is not available from %s", domain, runtime.Domain.Name())
-						payload := easyjson.NewJSONObjectWithKeyValue(fmt.Sprintf(statusIsReadyTmpl, domain), easyjson.NewJSON(false))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, payload, false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(linkType))
-					}
-				}
-			}
+	body := easyjson.NewJSONObject()
+
+	for _, linked := range linkedIDs {
+		dm, _, _ := ctx.Domain.GetShadowObjectDomainAndID(linked)
+		isReady := false
+		if _, err := dbc.CMDB.ObjectRead(ctx.Domain.GetObjectIDByShadowObjectID(linked)); err == nil {
+			isReady = true
 		}
+		body.SetByPath(fmt.Sprintf(statusReadyTmpl, dm), easyjson.NewJSON(isReady))
 	}
+
+	adapterUpdateStatus(dbc, body)
 }
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
-	statefun.NewFunctionType(runtime, postProcessFoliageFunctionName, postProcess, *statefun.NewFunctionTypeConfig())
+	statefun.NewFunctionType(runtime, postProcessFoliageFunctionName, datacenterPostProcess, *statefun.NewFunctionTypeConfig())
 	statefun.NewFunctionType(runtime, common.PropagateErrorFunctionName, common.PropagateError, *statefun.NewFunctionTypeConfig().SetMultipleInstancesAllowance(true))
 }
 
@@ -151,19 +91,34 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_APP_ADAPTER, types.TYPE_FOLIAGE_ADAPTER_DATACENTER, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, types.TYPE_FOLIAGE_APP_ADAPTER, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_APP_ADAPTER))
 
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
+	datacenterBody := easyjson.NewJSONObject()
+	for _, domain := range runtime.Domain.GetWeakClusterDomains() {
+		datacenterBody.SetByPath(fmt.Sprintf(statusReadyTmpl, domain), easyjson.NewJSON(false))
+	}
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, datacenterBody, false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))
+
+	connectLeafModel := func(rootID, _type, domain string) {
+		dbc.CMDB.ShadowObjectCanBeRecevier = true
+		shadowID := runtime.Domain.CreateCustomShadowId(runtime.Domain.HubDomainName(), domain, rootID)
+		body := easyjson.NewJSONObject()
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, body, false, _type))
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(datacenterRootUUID, shadowID, []string{linkedModelTag}, body, false, _type))
+		dbc.CMDB.ShadowObjectCanBeRecevier = false
+	}
 
 	// --- Link to leaf models ---
-	runtime.Domain.SetWeakClusterDomains([]string{"m1", "m2", "m3"})
+	runtime.Domain.SetWeakClusterDomains([]string{common.ModelM1, common.ModelM2, common.ModelM3})
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_ADAPTER_INFRA, easyjson.NewJSONObject(), false, true))
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, easyjson.NewJSONObject(), false, true))
 	system.MsgOnErrorReturn(dbc.CMDB.TypeUpdate(types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL, easyjson.NewJSONObject(), false, true))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, types.TYPE_FOLIAGE_ADAPTER_INFRA, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_INFRA))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE))
 	system.MsgOnErrorReturn(dbc.CMDB.TypesLinkUpdate(types.TYPE_FOLIAGE_ADAPTER_DATACENTER, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL, nil, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL))
-	///
 
-	go heartbeat(ctx, runtime)
+	connectLeafModel(common.M1RootObject, types.TYPE_FOLIAGE_ADAPTER_INFRA, common.ModelM1)
+	connectLeafModel(common.M2RootObject, types.TYPE_FOLIAGE_K8S_INFRASTRUCTURE, common.ModelM2)
+	connectLeafModel(common.M3RootObject, types.TYPE_FOLIAGE_ADAPTER_ARCH_MODEL, common.ModelM3)
+	///
 
 	return nil
 }

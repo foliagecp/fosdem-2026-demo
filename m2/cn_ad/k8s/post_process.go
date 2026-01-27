@@ -3,153 +3,76 @@ package main
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/foliagecp/easyjson"
 	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
-	"github.com/foliagecp/sdk/statefun"
 	lg "github.com/foliagecp/sdk/statefun/logger"
 	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
 	"github.com/foliagecp/sdk/statefun/system"
 )
 
-var recalculateShadowLinksIntervalSec = system.GetEnvMustProceed("RECALCULATE_SHADOW_INTERVAL_SEC", 20)
-
-func postProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	le := lg.GetLogger()
 	logCtx := context.Background()
-	payload := ctx.Payload
-	operation, ok := payload.GetByPath("operation").AsString()
-	if !ok {
-		le.Errorf(logCtx, "operation not found in payload")
-		return
-	}
-
-	if operation == "link_model" {
-		return
-	}
-
-	id, ok := payload.GetByPath("id").AsString()
-	if !ok {
-		lg.Logf(lg.ErrorLevel, "cannot get id from payload")
-		return
-	}
-
-	weakDomain, ok := payload.GetByPath("domain").AsString()
-	if !ok {
-		lg.Logf(lg.ErrorLevel, "cannot get domain from object: %s", id)
-		return
-	}
-
-	objType, ok := payload.GetByPath("type").AsString()
-	if !ok {
-		lg.Logf(lg.WarnLevel, "cannot get domain from object: %s", id)
-		return
-	}
-
-	shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), weakDomain, ctx.Domain.GetObjectIDWithoutDomain(id))
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
-		lg.Logln(lg.ErrorLevel, "cannot create db client")
+		le.Errorf(logCtx, "k8sInfrastructurePostProcess: cannot create db client %v", err)
 		return
 	}
 
-	switch operation {
-	case "link_arch_block":
-		service, ok := payload.GetByPath("service").AsString()
-		if !ok {
-			lg.Logf(lg.ErrorLevel, "cannot get service from payload")
-			return
-		}
-		k8sObjects, err := getK8sObjects(dbc)
-		if err != nil {
-			lg.Logln(lg.ErrorLevel, "cannot get k8s objects")
-			return
-		}
-		for _, k8sObject := range k8sObjects {
-			if strings.Contains(k8sObject.ImageName, service) {
-				dbc.CMDB.ShadowObjectCanBeRecevier = true
-				system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
-				dbc.CMDB.ShadowObjectCanBeRecevier = false
-				var tags []string
-				if k8sObject.ObjType == types.TYPE_FOLIAGE_POD {
-					tags = common.ErrorPropagateLinkTags
-				}
-				if createShadowLink(dbc, ctx, tags, k8sObject.ID, id, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, weakDomain) {
-					le.Infof(logCtx, "Linked k8s object %s (type: %s) to shadow Arch Block %s", k8sObject.ID, k8sObject.ObjType, service)
+	virtualMachines, err := getVirtualMachinesFromM1(ctx, dbc)
+	if err == nil {
+		nodes, err := getNodes(dbc)
+		if err == nil {
+			for _, node := range nodes {
+				if vmID, ok := virtualMachines[node.SystemUID]; ok {
+					createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, node.ID, vmID, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, common.ModelM1)
 				}
 			}
+		} else {
+			le.Errorf(logCtx, "k8sInfrastructurePostProcess: cannot get nodes %v", err)
 		}
-	case "link_vm":
-		uuid, ok := payload.GetByPath("uuid").AsString()
-		if !ok {
-			lg.Logf(lg.ErrorLevel, "cannot get uuid from payload %v", payload)
-			return
-		}
-		k8sNodes, err := getNodes(dbc)
-		if err != nil {
-			lg.Logln(lg.ErrorLevel, "cannot get k8s nodes")
-			return
-		}
-		for _, k8sNode := range k8sNodes {
-			if uuid == k8sNode.SystemUID {
-				dbc.CMDB.ShadowObjectCanBeRecevier = true
-				system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, objType))
-				dbc.CMDB.ShadowObjectCanBeRecevier = false
-				if createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, k8sNode.ID, id, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, weakDomain) {
-					le.Infof(logCtx, "Linked Node %s to shadow VM %s", k8sNode.ID, uuid)
-				}
-			}
-		}
-	default:
-		//le.Infof(logCtx, "operation '%s' is not supported", operation)
+	} else {
+		le.Errorf(logCtx, "k8sInfrastructurePostProcess: cannot get virtual machines %v", err)
 	}
-}
 
-func shadowLinksKeeper(ctx context.Context, dbc db.DBSyncClient, runtime *statefun.Runtime) {
-	ticker := time.NewTicker(time.Duration(recalculateShadowLinksIntervalSec) * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			var uidsForLink []easyjson.JSON
-			nodes, err := getNodes(dbc)
-			if err == nil {
-				for _, node := range nodes {
-					notifierPayload := easyjson.NewJSONObject()
-					notifierPayload.SetByPath("domain", easyjson.NewJSON(runtime.Domain.Name()))
-					notifierPayload.SetByPath("UID", easyjson.NewJSON(runtime.Domain.GetObjectIDWithoutDomain(node.ID)))
-					notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_NODE))
-					notifierPayload.SetByPath("operation", easyjson.NewJSON("add"))
-					notifierPayload.SetByPath("systemUID", easyjson.NewJSON(node.SystemUID))
-					uidsForLink = append(uidsForLink, notifierPayload)
-				}
-			}
-			k8sObjects, err := getK8sObjects(dbc)
-			if err == nil {
-				for _, k8sObject := range k8sObjects {
-					notifierPayload := easyjson.NewJSONObject()
-					notifierPayload.SetByPath("domain", easyjson.NewJSON(runtime.Domain.Name()))
-					notifierPayload.SetByPath("UID", easyjson.NewJSON(runtime.Domain.GetObjectIDWithoutDomain(k8sObject.ID)))
-					notifierPayload.SetByPath("operation", easyjson.NewJSON("add"))
-					notifierPayload.SetByPath("containersImage", easyjson.NewJSON(k8sObject.ImageName))
-					switch k8sObject.ObjType {
-					case types.TYPE_FOLIAGE_POD:
-						notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_POD))
-					case types.TYPE_FOLIAGE_DEPLOYMENT:
-						notifierPayload.SetByPath("type", easyjson.NewJSON(types.TYPE_FOLIAGE_DEPLOYMENT))
+	archBlocks, err := getArchBlocksFromM3(ctx, dbc)
+	if err == nil {
+		k8sObjects, err := getK8sObjects(dbc)
+		if err == nil {
+			for _, k8sObject := range k8sObjects {
+				var archBlockID string
+				var ok bool
+				switch k8sObject.ObjType {
+				case types.TYPE_FOLIAGE_POD:
+					if archBlockID, ok = archBlocks[k8sObject.LabelsApp]; !ok {
+						le.Warnf(logCtx, "k8sInfrastructurePostProcess: cannot find arch block for pod %v", k8sObject.LabelsApp)
 					}
-					uidsForLink = append(uidsForLink, notifierPayload)
+				case types.TYPE_FOLIAGE_DEPLOYMENT:
+					if archBlockID, ok = archBlocks[k8sObject.Name]; !ok {
+						le.Warnf(logCtx, "k8sInfrastructurePostProcess: cannot find arch block for deployment %v", k8sObject.Name)
+					}
+				}
+				// find by container image name
+				if !ok {
+					for serviceName := range archBlocks {
+						if strings.Contains(k8sObject.ImageName, serviceName) {
+							archBlockID = archBlocks[serviceName]
+							break
+						}
+					}
+				}
+				if archBlockID != "" {
+					createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, k8sObject.ID, archBlockID, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, common.ModelM3)
 				}
 			}
-			common.NotifyAdapters(runtime, dbc, uidsForLink...)
 		}
 	}
+
+	common.PostProcessNotifier(dbc, ctx)
 }
 
 func createShadowLink(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor, tags []string, fromId, toId, toType, targetDomain string) bool {
@@ -172,7 +95,7 @@ type Node struct {
 func getNodes(dbc db.DBSyncClient) ([]Node, error) {
 	var nodes []Node
 
-	nodeIDs, err := dbc.Query.JPGQLCtraQuery(types.TYPE_FOLIAGE_NODE, ".*[l:type('__object')]")
+	nodeIDs, err := dbc.Query.JPGQLCtraQuery(types.TYPE_FOLIAGE_NODE, common.AllObjectsQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +121,8 @@ type K8sObject struct {
 	ID        string
 	ObjType   string
 	ImageName string
+	Name      string
+	LabelsApp string
 }
 
 func getK8sObjects(dbc db.DBSyncClient) ([]K8sObject, error) {
@@ -212,15 +137,13 @@ func getK8sObjects(dbc db.DBSyncClient) ([]K8sObject, error) {
 				if err != nil {
 					continue
 				}
-
-				imageName := objData.GetByPath("body.containersImage").AsStringDefault("")
-				if imageName != "" {
-					objects = append(objects, K8sObject{
-						ID:        id,
-						ObjType:   _type,
-						ImageName: imageName,
-					})
-				}
+				objects = append(objects, K8sObject{
+					ID:        id,
+					ObjType:   _type,
+					ImageName: objData.GetByPath("body.containersImage").AsStringDefault(""),
+					Name:      objData.GetByPath("body.name").AsStringDefault(""),
+					LabelsApp: objData.GetByPath("body.labelsApp").AsStringDefault(""),
+				})
 			}
 		}
 	}
@@ -231,16 +154,61 @@ func getK8sObjects(dbc db.DBSyncClient) ([]K8sObject, error) {
 	return objects, nil
 }
 
-func normalizeImageName(fullImage string) string {
-	lastSlash := strings.LastIndex(fullImage, "/")
-	if lastSlash != -1 {
-		fullImage = fullImage[lastSlash+1:]
+func getVirtualMachinesFromM1(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) (map[string]string, error) {
+	le := lg.GetLogger()
+	logCtx := context.Background()
+
+	vmIDs, err := dbc.Query.JPGQLCtraQuery(
+		ctx.Domain.CreateObjectIDWithDomain(common.ModelM1, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, true), common.AllObjectsQuery)
+	if err != nil {
+		return nil, err
 	}
 
-	colonIdx := strings.Index(fullImage, ":")
-	if colonIdx != -1 {
-		fullImage = fullImage[:colonIdx]
+	vms := make(map[string]string, len(vmIDs))
+
+	for _, vmID := range vmIDs {
+		objData, err := dbc.CMDB.ObjectRead(vmID)
+		if err != nil {
+			le.Errorf(logCtx, "getVirtualMachines: cannot read object %s: %v", vmID, err)
+			continue
+		}
+
+		productUUID, ok := objData.GetByPath("body.sources.lshw.configuration.uuid").AsString()
+		if ok {
+			vms[productUUID] = vmID
+		}
+	}
+	return vms, nil
+}
+
+func getArchBlocksFromM3(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) (map[string]string, error) {
+	le := lg.GetLogger()
+	logCtx := context.Background()
+
+	blockIDs, err := dbc.Query.JPGQLCtraQuery(
+		ctx.Domain.CreateObjectIDWithDomain(common.ModelM3, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, true), common.AllObjectsQuery)
+	if err != nil {
+		le.Errorf(logCtx, "getArchBlocks: cannot get arch blocks: %v", err)
+		return nil, err
 	}
 
-	return strings.ToLower(fullImage)
+	blocks := make(map[string]string, len(blockIDs))
+
+	for _, blockID := range blockIDs {
+		objData, err := dbc.CMDB.ObjectRead(blockID)
+		if err != nil {
+			le.Errorf(logCtx, "getArchBlocks: cannot read arch block %s: %v", blockID, err)
+			continue
+		}
+
+		serviceName, ok := objData.GetByPath("body.service").AsString()
+		if !ok {
+			le.Warnf(logCtx, "getArchBlocks: cannot get arch block %s: service name not found", blockID)
+			continue
+		}
+
+		blocks[strings.ToLower(serviceName)] = blockID
+	}
+
+	return blocks, nil
 }
