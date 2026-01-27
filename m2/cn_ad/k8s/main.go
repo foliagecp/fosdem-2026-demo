@@ -23,7 +23,6 @@ import (
 const (
 	pushUpdateFnName          = "function.cn_ad.k8s.push_update"
 	postProcessFnName         = "function.cn_ad.k8s.post_process"
-	propagateErrorFnName      = "function.cn_ad.k8s.propagate_error"
 	k8sInfrastructureRootUUID = "k8s_infrastructure"
 )
 
@@ -142,7 +141,7 @@ func registerFunctionTypes(runtime *statefun.Runtime) {
 	)
 	statefun.NewFunctionType(
 		runtime,
-		propagateErrorFnName,
+		common.PropagateErrorFunctionName,
 		common.PropagateError,
 		*statefun.NewFunctionTypeConfig().SetAllowedSignalProviders(sfPlugins.AutoSignalSelect),
 	)
