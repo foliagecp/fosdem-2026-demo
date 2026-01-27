@@ -151,12 +151,12 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				switch ownerKind {
 				case deploymentKind:
 					if _, ok = deployments[ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false)]; ok {
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, ownerUID))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, ownerUID))
 						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, podID))
 					}
 				case replicaSetKind:
 					if _, ok = replicasets[ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false)]; ok {
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, ownerUID))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, ownerUID))
 						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, podID))
 					}
 				case daemonSetKind:
