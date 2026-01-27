@@ -174,7 +174,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				if ok {
 					for deploymentID := range deployments {
 						if ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false) == deploymentID {
-							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(replicasetID, deploymentID, nil, easyjson.NewJSONObject(), false, deploymentID))
+							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(replicasetID, deploymentID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, deploymentID))
 							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(deploymentID, replicasetID, nil, easyjson.NewJSONObject(), false, replicasetID))
 						}
 					}
