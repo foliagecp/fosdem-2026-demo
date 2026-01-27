@@ -6,6 +6,8 @@ on:
     paths:
       - 'm4/**'
 
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: [self-hosted, m4]

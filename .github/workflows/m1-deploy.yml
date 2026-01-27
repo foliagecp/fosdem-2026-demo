@@ -5,6 +5,7 @@ on:
     branches: [ dev ]
     paths:
       - 'm1/**'
+  workflow_dispatch:
 
 jobs:
   deploy:
