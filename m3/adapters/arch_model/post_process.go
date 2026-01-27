@@ -34,7 +34,7 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
-		lg.Logln(lg.ErrorLevel, "cannot create db client")
+		le.Errorf(logCtx, "archModelPostProcess: db.NewDBSyncClientFromRequestFunction error: %v", err)
 		return
 	}
 
@@ -42,23 +42,24 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 	case "add":
 		objType, ok := payload.GetByPath("type").AsString()
 		if !ok {
-			le.Errorf(logCtx, "type not found in payload")
+			le.Errorf(logCtx, "archModelPostProcess: annot get type from payload")
 			return
 		}
 
 		if objType == types.TYPE_FOLIAGE_POD || objType == types.TYPE_FOLIAGE_DEPLOYMENT {
 			handleK8sObjectSignal(dbc, ctx, payload, objType)
 		}
-
 	case "delete":
 		objType, ok := payload.GetByPath("type").AsString()
 		if !ok {
+			le.Errorf(logCtx, "archModelPostProcess: cannot get type from payload")
 			return
 		}
 
 		if objType == types.TYPE_FOLIAGE_POD || objType == types.TYPE_FOLIAGE_DEPLOYMENT {
 			uid, ok := payload.GetByPath("UID").AsString()
 			if !ok {
+				le.Errorf(logCtx, "archModelPostProcess: cannot get UID from payload")
 				return
 			}
 			// Delete shadow object
@@ -66,9 +67,7 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 			_ = dbc.CMDB.ObjectDelete(shadowID)
 			le.Infof(logCtx, "Deleted shadow %s %s", objType, shadowID)
 		}
-
 	default:
-		//le.Debugf(logCtx, "operation '%s' is not supported", operation)
 	}
 }
 
@@ -104,25 +103,26 @@ func handleK8sObjectSignal(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextPr
 
 	uid, ok := payload.GetByPath("UID").AsString()
 	if !ok {
-		le.Debugf(logCtx, "handleK8sObjectSignal: cannot get UID from payload")
+		le.Errorf(logCtx, "handleK8sObjectSignal: cannot get UID from payload")
 		return
 	}
 
 	containersImage, ok := payload.GetByPath("containersImage").AsString()
 	if !ok {
-		le.Debugf(logCtx, "handleK8sObjectSignal: cannot get containersImage from payload, skipping")
+		le.Errorf(logCtx, "handleK8sObjectSignal: cannot get containersImage from payload, skipping")
 		return
 	}
 
 	domain, ok := payload.GetByPath("domain").AsString()
 	if !ok {
-		le.Debugf(logCtx, "handleK8sObjectSignal: cannot get domain from payload")
+		le.Errorf(logCtx, "handleK8sObjectSignal: cannot get domain from payload")
 		return
 	}
 
 	// Normalize image name for matching
 	imageName := normalizeImageName(containersImage)
 	if imageName == "" {
+		le.Errorf(logCtx, "handleK8sObjectSignal: cannot normalize image name for uid: %s", uid)
 		return
 	}
 
@@ -139,9 +139,12 @@ func handleK8sObjectSignal(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextPr
 			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), domain, ctx.Domain.GetObjectIDWithoutDomain(uid))
 
 			dbc.CMDB.ShadowObjectCanBeRecevier = true
-			system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, objType))
+			err = dbc.CMDB.ObjectCreate(shadowID, objType)
 			dbc.CMDB.ShadowObjectCanBeRecevier = false
-
+			if err != nil {
+				le.Errorf(logCtx, "handleK8sObjectSignal: cannot create shadow object %s: %v", shadowID, err)
+				return
+			}
 			// Link ArchBlock → shadow(Pod/Deployment)
 			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(block.ID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID))
 		}
@@ -154,22 +157,27 @@ type ArchBlock struct {
 }
 
 func getArchBlocks(dbc db.DBSyncClient) ([]ArchBlock, error) {
+	le := lg.GetLogger()
+	logCtx := context.Background()
+
 	var blocks []ArchBlock
 
 	blockIDs, err := dbc.Query.JPGQLCtraQuery(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, ".*[l:type('__object')]")
 	if err != nil {
+		le.Errorf(logCtx, "getArchBlocks: cannot get arch blocks: %v", err)
 		return nil, err
 	}
 
 	for _, blockID := range blockIDs {
 		objData, err := dbc.CMDB.ObjectRead(blockID)
 		if err != nil {
+			le.Errorf(logCtx, "getArchBlocks: cannot read arch block %s: %v", blockID, err)
 			continue
 		}
 
 		serviceName, ok := objData.GetByPath("body.service").AsString()
 		if !ok {
-			lg.Logf(lg.ErrorLevel, "cant get field service from arch block: %s", blockID)
+			le.Errorf(logCtx, "getArchBlocks: cannot get 'body.service' from arch block %s", blockID)
 			continue
 		}
 

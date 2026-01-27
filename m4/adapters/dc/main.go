@@ -116,14 +116,10 @@ func heartbeat(ctx context.Context, runtime *statefun.Runtime) {
 						lg.Logf(lg.ErrorLevel, "cannot get link name for object: %s", outLinks.ArrayElement(i))
 						continue
 					}
-					domain, id, err := runtime.Domain.GetShadowObjectDomainAndID(linkName)
+					id := runtime.Domain.GetObjectIDByShadowObjectID(linkName)
+					_, err = dbc.CMDB.ObjectRead(id)
 					if err != nil {
-						lg.Logf(lg.ErrorLevel, "cannot get shadow object domain for object: %s", outLinks.ArrayElement(i))
-						continue
-					}
-					idForCheck := runtime.Domain.CreateObjectIDWithDomain(domain, id, true)
-					_, err = dbc.CMDB.ObjectRead(idForCheck)
-					if err != nil {
+						domain := runtime.Domain.GetDomainFromObjectID(id)
 						lg.Logf(lg.WarnLevel, "::::::model '%s' is not available from %s", domain, runtime.Domain.Name())
 						payload := easyjson.NewJSONObjectWithKeyValue(fmt.Sprintf(statusIsReadyTmpl, domain), easyjson.NewJSON(false))
 						system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(datacenterRootUUID, payload, false, types.TYPE_FOLIAGE_ADAPTER_DATACENTER))

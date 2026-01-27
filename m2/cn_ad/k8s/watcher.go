@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -223,11 +222,9 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 
 		if cs := resource.Status.ContainerStatuses; len(cs) > 0 {
 			m2Object.SetByPath("restartCount", easyjson.NewJSON(cs[0].RestartCount))
-			//if cs[0].RestartCount > 0 {
-			if rand.Float64() < 0.5 { //FIXME TODO TEST!!!!!!! DELETE for production, check ERROR
-				m2Object.SetByPath("error", easyjson.NewJSON(true))
+			if cs[0].RestartCount > 0 {
+				m2Object.SetByPath("error.error", easyjson.NewJSON(true))
 			}
-			//}
 		}
 
 		typeName = types.TYPE_FOLIAGE_POD
@@ -299,7 +296,7 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 	}
 
 	//propagate error
-	if body.PathExists("error") {
+	if body.PathExists("error.error") {
 		system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, propagateErrorFnName, objID, nil, nil))
 	}
 

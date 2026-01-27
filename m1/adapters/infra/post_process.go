@@ -80,7 +80,7 @@ func shadowLinksKeeper(ctx context.Context, dbc db.DBSyncClient, runtime *statef
 		case <-ticker.C:
 			vms, err := getVirtualMachines(dbc)
 			if err != nil {
-				lg.Logln(lg.ErrorLevel, "shadowLinksKeeper: cannot get virtual machines")
+				lg.Logf(lg.ErrorLevel, "shadowLinksKeeper: cannot get virtual machines: %v", err)
 				continue
 			}
 			var vmsForLink []easyjson.JSON
@@ -133,11 +133,13 @@ func handleNodeSignal(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcess
 			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), domain, ctx.Domain.GetObjectIDWithoutDomain(nodeUID))
 
 			dbc.CMDB.ShadowObjectCanBeRecevier = true
-			system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, types.TYPE_FOLIAGE_NODE))
+			err = dbc.CMDB.ObjectCreate(shadowID, types.TYPE_FOLIAGE_NODE)
 			dbc.CMDB.ShadowObjectCanBeRecevier = false
-
+			if err != nil {
+				le.Errorf(logCtx, "handleNodeSignal: cannot create shadow object %s: %v", shadowID, err)
+				return
+			}
 			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(vm.ID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID))
-
 		}
 	}
 }
@@ -158,6 +160,7 @@ func getVirtualMachines(dbc db.DBSyncClient) ([]VirtualMachine, error) {
 	for _, vmID := range vmIDs {
 		objData, err := dbc.CMDB.ObjectRead(vmID)
 		if err != nil {
+			lg.Logf(lg.ErrorLevel, "getVirtualMachines: cannot read object %s: %v", vmID, err)
 			continue
 		}
 

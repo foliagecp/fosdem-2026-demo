@@ -41,16 +41,16 @@ func PropagateError(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContext
 		return
 	}
 
-	if currentObject.PathExists("body.error") || currentObject.PathExists("body.error_distribution") {
-		existingTSFloat := currentObject.GetByPath("body.__error_timestamp_nano").AsNumericDefault(0)
+	if currentObject.PathExists("body.error.error") || currentObject.PathExists("body.error.error_distribution") {
+		existingTSFloat := currentObject.GetByPath("body.error.__error_timestamp_nano").AsNumericDefault(0)
 		if int64(existingTSFloat) >= errorTS {
 			return
 		}
 	}
 
 	propagateErrorPayload := easyjson.NewJSONObject()
-	propagateErrorPayload.SetByPath("error_distribution", easyjson.NewJSON(true))
-	propagateErrorPayload.SetByPath("__error_timestamp_nano", easyjson.NewJSON(errorTS))
+	propagateErrorPayload.SetByPath("error.distribution", easyjson.NewJSON(true))
+	propagateErrorPayload.SetByPath("error.__error_timestamp_nano", easyjson.NewJSON(errorTS))
 	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(ctx.Self.ID, propagateErrorPayload, false))
 
 	for _, tag := range ErrorPropagateLinkTags {

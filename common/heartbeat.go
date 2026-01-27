@@ -20,7 +20,7 @@ func HeartBeat(ctx context.Context, runtime *statefun.Runtime, id, _type string)
 		lg.GetLogger().Errorf(ctx, "heartbeat request failed: %v", err)
 		return
 	}
-	notifierPayload := easyjson.NewJSONObject()
+	notifierPayload := easyjson.NewJSONObject().GetPtr()
 	notifierPayload.SetByPath("domain", easyjson.NewJSON(runtime.Domain.Name()))
 	notifierPayload.SetByPath("id", easyjson.NewJSON(id))
 	notifierPayload.SetByPath("type", easyjson.NewJSON(_type))
@@ -44,7 +44,7 @@ func HeartBeat(ctx context.Context, runtime *statefun.Runtime, id, _type string)
 					".*[l:type('__object')]"); err == nil {
 					for _, uuid := range uuids {
 						if typename, ok := getPostProcessFunction(uuid); ok {
-							system.MsgOnErrorReturn(runtime.Signal(sfPlugins.AutoSignalSelect, typename, uuid, notifierPayload.GetPtr(), nil))
+							system.MsgOnErrorReturn(runtime.Signal(sfPlugins.AutoSignalSelect, typename, uuid, notifierPayload, nil))
 						}
 					}
 				}
