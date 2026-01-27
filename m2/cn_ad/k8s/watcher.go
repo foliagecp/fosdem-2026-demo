@@ -272,7 +272,6 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 		if typeName == types.TYPE_FOLIAGE_POD || typeName == types.TYPE_FOLIAGE_DEPLOYMENT || typeName == types.TYPE_FOLIAGE_NODE {
 			body.SetByPath("type", easyjson.NewJSON(typeName))
 			body.SetByPath("operation", easyjson.NewJSON("delete"))
-			w.notifyAdapters(&body)
 		}
 	case ADD:
 		if err := w.dbc.CMDB.ObjectCreate(objID, typeName, body); err != nil {
@@ -284,7 +283,6 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 		if typeName == types.TYPE_FOLIAGE_POD || typeName == types.TYPE_FOLIAGE_DEPLOYMENT || typeName == types.TYPE_FOLIAGE_NODE {
 			body.SetByPath("type", easyjson.NewJSON(typeName))
 			body.SetByPath("operation", easyjson.NewJSON("add"))
-			w.notifyAdapters(&body)
 		}
 	case UPDATE:
 		if err := w.dbc.CMDB.ObjectUpdate(objID, body, false, typeName); err != nil {
