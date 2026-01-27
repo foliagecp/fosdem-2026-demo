@@ -29,7 +29,7 @@ func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.S
 		if err == nil {
 			for _, node := range nodes {
 				if vmID, ok := virtualMachines[node.SystemUID]; ok {
-					createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, node.ID, vmID, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, common.ModelM1)
+					createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, node.ID, vmID, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, common.ModelM1)
 				}
 			}
 		} else {
