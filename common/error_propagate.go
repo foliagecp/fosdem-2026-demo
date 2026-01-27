@@ -20,6 +20,7 @@ const PropagateErrorFunctionName = "functions.common.propagate_error"
 // "__error_timestamp_nano" int
 
 func PropagateError(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
+	lg.Logf(lg.DebugLevel, "PropagateError() called on ID: %v", ctx.Self.ID)
 	var errorTS int64
 	errorTSFloat, ok := ctx.Payload.GetByPath("body.__error_timestamp_nano").AsNumeric()
 	if !ok {
