@@ -28,24 +28,40 @@ func infraPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunConte
 		return
 	}
 
-	m2Nodes, err := getM2Nodes(ctx, dbc)
+	m2Nodes, err := getNodesByDomain(ctx, dbc, common.ModelM2)
 	if err != nil {
 		le.Errorf(logCtx, "infraPostProcess: cannot get m2 nodes %v", err)
 		return
 	}
 
-	for _, node := range m2Nodes {
+	m1ShadowNodes, err := getNodesByDomain(ctx, dbc, ctx.Domain.Name())
+	if err != nil {
+		le.Errorf(logCtx, "infraPostProcess: cannot get m1 nodes %v", err)
+		return
+	}
+
+	res := reconcileShadowNodes(m2Nodes, m1ShadowNodes)
+
+	for _, node := range res.ToDelete {
+		dbc.CMDB.ShadowObjectCanBeRecevier = true
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(ctx.Domain.CreateCustomShadowId(ctx.Domain.Name(), common.ModelM2, node.ID)))
+		dbc.CMDB.ShadowObjectCanBeRecevier = false
+	}
+
+	for _, node := range res.ToUpsert {
 		if vmID, ok := virtualMachines[node.SystemUID]; ok {
 			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), common.ModelM2, ctx.Domain.GetObjectIDWithoutDomain(node.ID))
 			dbc.CMDB.ShadowObjectCanBeRecevier = true
 			err = dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE)
 			dbc.CMDB.ShadowObjectCanBeRecevier = false
 			if err != nil {
-				le.Errorf(logCtx, "archModelPostProcess: cannot create shadow object %s: %v", shadowID, err)
+				le.Errorf(logCtx, "infraPostProcess: cannot create shadow object %s: %v", shadowID, err)
 				return
 			}
 			// Link virtualMachine → shadow(Node)
+			dbc.CMDB.ShadowObjectCanBeRecevier = true
 			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(vmID, shadowID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, shadowID))
+			dbc.CMDB.ShadowObjectCanBeRecevier = false
 		}
 	}
 }
@@ -78,25 +94,53 @@ type K8sNode struct {
 	SystemUID string
 }
 
-func getM2Nodes(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) ([]K8sNode, error) {
+func getNodesByDomain(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient, dm string) ([]K8sNode, error) {
 	var nodes []K8sNode
 
-	ids, err := dbc.Query.JPGQLCtraQuery(ctx.Domain.CreateObjectIDWithDomain(common.ModelM2, types.TYPE_FOLIAGE_NODE, true), common.AllObjectsQuery)
+	ids, err := dbc.Query.JPGQLCtraQuery(ctx.Domain.CreateObjectIDWithDomain(dm, types.TYPE_FOLIAGE_NODE, true), common.AllObjectsQuery)
 	if err == nil {
 		for _, id := range ids {
 			objData, err := dbc.CMDB.ObjectRead(id)
 			if err != nil {
 				continue
 			}
-			systemUUID, ok := objData.GetByPath("body.systemUID").AsString()
-			if ok {
-				nodes = append(nodes, K8sNode{
-					ID:        id,
-					SystemUID: systemUUID,
-				})
+
+			var clearedID string
+			if dm == ctx.Domain.Name() {
+				clearedID = ctx.Domain.GetObjectIDWithoutDomain(id)
+			} else {
+				_, clearedID, _ = ctx.Domain.GetShadowObjectDomainAndID(id)
 			}
+			nodes = append(nodes, K8sNode{
+				ID:        clearedID,
+				SystemUID: objData.GetByPath("body.systemUID").AsStringDefault(""),
+			})
 		}
 	}
 
 	return nodes, nil
+}
+
+type ReconcileResult struct {
+	ToUpsert []K8sNode
+	ToDelete []K8sNode
+}
+
+func reconcileShadowNodes(m2, m1 []K8sNode) ReconcileResult {
+	m2Set := make(map[string]struct{}, len(m2))
+	for _, n := range m2 {
+		m2Set[n.ID] = struct{}{}
+	}
+
+	var res ReconcileResult
+
+	res.ToUpsert = append(res.ToUpsert, m2...)
+
+	for _, n := range m1 {
+		if _, ok := m2Set[n.ID]; !ok {
+			res.ToDelete = append(res.ToDelete, n)
+		}
+	}
+
+	return res
 }
