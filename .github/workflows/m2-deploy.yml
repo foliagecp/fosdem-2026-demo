@@ -16,6 +16,8 @@ jobs:
 
       - name: Build
         run: |
+          export DOCKER_BUILDKIT=1
+          export BUILDX_NO_DEFAULT_ATTESTATIONS=1
           cd m2
           docker compose build  
 
