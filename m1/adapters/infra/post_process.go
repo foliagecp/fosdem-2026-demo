@@ -50,7 +50,7 @@ func infraPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunConte
 
 	for _, node := range res.ToUpsert {
 		if vmID, ok := virtualMachines[node.SystemUID]; ok {
-			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), common.ModelM2, ctx.Domain.GetObjectIDWithoutDomain(node.ID))
+			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), common.ModelM2, node.ID)
 			dbc.CMDB.ShadowObjectCanBeRecevier = true
 			err = dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE)
 			dbc.CMDB.ShadowObjectCanBeRecevier = false
@@ -100,15 +100,17 @@ func getNodesByDomain(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClie
 	ids, err := dbc.Query.JPGQLCtraQuery(ctx.Domain.CreateObjectIDWithDomain(dm, types.TYPE_FOLIAGE_NODE, true), common.AllObjectsQuery)
 	if err == nil {
 		for _, id := range ids {
-			objData, err := dbc.CMDB.ObjectRead(id)
-			if err != nil {
-				continue
-			}
 
 			var clearedID string
+			var objData easyjson.JSON
+			var err error
 			if dm == ctx.Domain.Name() {
 				clearedID = ctx.Domain.GetObjectIDWithoutDomain(id)
 			} else {
+				objData, err = dbc.CMDB.ObjectRead(id)
+				if err != nil {
+					continue
+				}
 				_, clearedID, _ = ctx.Domain.GetShadowObjectDomainAndID(id)
 			}
 			nodes = append(nodes, K8sNode{
