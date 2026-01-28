@@ -88,7 +88,7 @@ func NewWatcher(
 	clusterID string,
 	stopCh <-chan struct{},
 ) (*Watcher, error) {
-	factory := informers.NewSharedInformerFactoryWithOptions(k8sClient, 30*time.Second, informers.WithNamespace(k8sNamespaceForInformer))
+	factory := informers.NewSharedInformerFactoryWithOptions(k8sClient, 0, informers.WithNamespace(k8sNamespaceForInformer))
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)
 	if err != nil {
