@@ -53,7 +53,7 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 		shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), common.ModelM2, ctx.Domain.GetObjectIDWithoutDomain(k8sObject.ID))
 
 		dbc.CMDB.ShadowObjectCanBeRecevier = true
-		err = dbc.CMDB.ObjectCreate(shadowID, k8sObject.ObjType)
+		err = dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, k8sObject.ObjType)
 		dbc.CMDB.ShadowObjectCanBeRecevier = false
 		if err != nil {
 			le.Errorf(logCtx, "archModelPostProcess: cannot create shadow object %s: %v", shadowID, err)

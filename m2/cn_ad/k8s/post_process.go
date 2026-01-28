@@ -79,7 +79,7 @@ func createShadowLink(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcess
 	shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), targetDomain, ctx.Domain.GetObjectIDWithoutDomain(toId))
 
 	dbc.CMDB.ShadowObjectCanBeRecevier = true
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectCreate(shadowID, toType))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, toType))
 	dbc.CMDB.ShadowObjectCanBeRecevier = false
 
 	err := dbc.CMDB.ObjectsLinkUpdate(fromId, shadowID, tags, easyjson.NewJSONObject(), false, shadowID)

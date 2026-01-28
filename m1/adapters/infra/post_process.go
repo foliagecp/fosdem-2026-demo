@@ -38,7 +38,7 @@ func infraPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunConte
 		if vmID, ok := virtualMachines[node.SystemUID]; ok {
 			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), common.ModelM2, ctx.Domain.GetObjectIDWithoutDomain(node.ID))
 			dbc.CMDB.ShadowObjectCanBeRecevier = true
-			err = dbc.CMDB.ObjectCreate(shadowID, types.TYPE_FOLIAGE_NODE)
+			err = dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE)
 			dbc.CMDB.ShadowObjectCanBeRecevier = false
 			if err != nil {
 				le.Errorf(logCtx, "archModelPostProcess: cannot create shadow object %s: %v", shadowID, err)
