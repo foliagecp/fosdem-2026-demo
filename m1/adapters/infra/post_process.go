@@ -28,13 +28,13 @@ func infraPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunConte
 		return
 	}
 
-	m2Nodes, err := getNodesByDomain(ctx, dbc, common.ModelM2)
+	m2Nodes, err := getNodes(ctx, dbc)
 	if err != nil {
 		le.Errorf(logCtx, "infraPostProcess: cannot get m2 nodes %v", err)
 		return
 	}
 
-	m1ShadowNodes, err := getNodesByDomain(ctx, dbc, ctx.Domain.Name())
+	m1ShadowNodes, err := getShadowNodes(ctx, dbc)
 	if err != nil {
 		le.Errorf(logCtx, "infraPostProcess: cannot get m1 nodes %v", err)
 		return
@@ -94,29 +94,39 @@ type K8sNode struct {
 	SystemUID string
 }
 
-func getNodesByDomain(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient, dm string) ([]K8sNode, error) {
+func getNodes(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) ([]K8sNode, error) {
 	var nodes []K8sNode
 
-	ids, err := dbc.Query.JPGQLCtraQuery(ctx.Domain.CreateObjectIDWithDomain(dm, types.TYPE_FOLIAGE_NODE, true), common.AllObjectsQuery)
+	ids, err := dbc.Query.JPGQLCtraQuery(ctx.Domain.CreateObjectIDWithDomain(common.ModelM2, types.TYPE_FOLIAGE_NODE, true), common.AllObjectsQuery)
 	if err == nil {
 		for _, id := range ids {
-
-			var clearedID string
-			var objData easyjson.JSON
-			var err error
-			if dm == ctx.Domain.Name() {
-				clearedID = ctx.Domain.GetObjectIDWithoutDomain(id)
-			} else {
-				objData, err = dbc.CMDB.ObjectRead(id)
-				if err != nil {
-					continue
-				}
-				_, clearedID, _ = ctx.Domain.GetShadowObjectDomainAndID(id)
+			objData, err := dbc.CMDB.ObjectRead(id)
+			if err != nil {
+				continue
 			}
+
 			nodes = append(nodes, K8sNode{
-				ID:        clearedID,
+				ID:        ctx.Domain.GetObjectIDWithoutDomain(id),
 				SystemUID: objData.GetByPath("body.systemUID").AsStringDefault(""),
 			})
+		}
+	}
+
+	return nodes, nil
+}
+
+func getShadowNodes(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) ([]K8sNode, error) {
+	var nodes []K8sNode
+
+	ids, err := dbc.Query.JPGQLCtraQuery(types.TYPE_FOLIAGE_NODE, common.AllObjectsQuery)
+	if err == nil {
+		for _, id := range ids {
+			_, id, err := ctx.Domain.GetShadowObjectDomainAndID(id)
+			if err == nil {
+				nodes = append(nodes, K8sNode{
+					ID: id,
+				})
+			}
 		}
 	}
 
