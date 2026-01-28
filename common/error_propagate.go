@@ -100,7 +100,7 @@ func amIPatientZero(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient
 	}
 
 	switch ctx.Domain.GetObjectIDWithoutDomain(types[0]) {
-	case "k8s-source-pod":
+	case "foliage-cn_ad-k8s-pod":
 		if currentObject.GetByPath("body.restartCount").AsNumericDefault(0) > 0 {
 			return true, true
 		}
