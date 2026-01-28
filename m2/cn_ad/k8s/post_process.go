@@ -24,50 +24,79 @@ func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.S
 	}
 
 	virtualMachines, err := getVirtualMachinesFromM1(ctx, dbc)
-	if err == nil {
-		nodes, err := getNodes(dbc)
-		if err == nil {
-			for _, node := range nodes {
-				if vmID, ok := virtualMachines[node.SystemUID]; ok {
-					createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, node.ID, vmID, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, common.ModelM1)
-				}
-			}
-		} else {
-			le.Errorf(logCtx, "k8sInfrastructurePostProcess: cannot get nodes %v", err)
-		}
-	} else {
+	if err != nil {
 		le.Errorf(logCtx, "k8sInfrastructurePostProcess: cannot get virtual machines %v", err)
 	}
 
-	archBlocks, err := getArchBlocksFromM3(ctx, dbc)
+	vmShadow, err := getShadowVirtualMachines(ctx, dbc)
+	if err != nil {
+		le.Errorf(logCtx, "k8sInfrastructurePostProcess: cannot get shadow virtual machines %v", err)
+	}
+
+	res := reconcile(virtualMachines, vmShadow)
+
+	for _, id := range res.ToDelete {
+		dbc.CMDB.ShadowObjectCanBeRecevier = true
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(ctx.Domain.CreateCustomShadowId(ctx.Domain.Name(), common.ModelM1, ctx.Domain.GetObjectIDWithoutDomain(id))))
+		dbc.CMDB.ShadowObjectCanBeRecevier = false
+	}
+
+	nodes, err := getNodes(dbc)
 	if err == nil {
-		k8sObjects, err := getK8sObjects(dbc)
-		if err == nil {
-			for _, k8sObject := range k8sObjects {
-				var archBlockID string
-				var ok bool
-				switch k8sObject.ObjType {
-				case types.TYPE_FOLIAGE_POD:
-					if archBlockID, ok = archBlocks[k8sObject.LabelsApp]; !ok {
-						le.Warnf(logCtx, "k8sInfrastructurePostProcess: cannot find arch block for pod %v", k8sObject.LabelsApp)
-					}
-				case types.TYPE_FOLIAGE_DEPLOYMENT:
-					if archBlockID, ok = archBlocks[k8sObject.Name]; !ok {
-						le.Warnf(logCtx, "k8sInfrastructurePostProcess: cannot find arch block for deployment %v", k8sObject.Name)
+		for _, node := range nodes {
+			if vmID, ok := res.ToUpsert[node.SystemUID]; ok {
+				createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, node.ID, vmID, types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, common.ModelM1)
+			}
+		}
+	} else {
+		le.Errorf(logCtx, "k8sInfrastructurePostProcess: cannot get nodes %v", err)
+	}
+
+	archBlocks, err := getArchBlocksFromM3(ctx, dbc)
+	if err != nil {
+		le.Errorf(logCtx, "k8sInfrastructurePostProcess: cannot get arch blocks %v", err)
+		return
+	}
+	archBlocksShadow, err := getShadowArchBlocks(ctx, dbc)
+	if err != nil {
+		le.Errorf(logCtx, "k8sInfrastructurePostProcess: cannot get shadow arch blocks %v", err)
+		return
+	}
+
+	archBloksForProcess := reconcile(archBlocks, archBlocksShadow)
+
+	for _, id := range archBloksForProcess.ToDelete {
+		dbc.CMDB.ShadowObjectCanBeRecevier = true
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(ctx.Domain.CreateCustomShadowId(ctx.Domain.Name(), common.ModelM3, ctx.Domain.GetObjectIDWithoutDomain(id))))
+		dbc.CMDB.ShadowObjectCanBeRecevier = false
+	}
+
+	k8sObjects, err := getK8sObjects(dbc)
+	if err == nil {
+		for _, k8sObject := range k8sObjects {
+			var archBlockID string
+			var ok bool
+			switch k8sObject.ObjType {
+			case types.TYPE_FOLIAGE_POD:
+				if archBlockID, ok = archBloksForProcess.ToUpsert[k8sObject.LabelsApp]; !ok {
+					le.Warnf(logCtx, "k8sInfrastructurePostProcess: cannot find arch block for pod %v", k8sObject.LabelsApp)
+				}
+			case types.TYPE_FOLIAGE_DEPLOYMENT:
+				if archBlockID, ok = archBloksForProcess.ToUpsert[k8sObject.Name]; !ok {
+					le.Warnf(logCtx, "k8sInfrastructurePostProcess: cannot find arch block for deployment %v", k8sObject.Name)
+				}
+			}
+			// find by container image name
+			if !ok {
+				for serviceName := range archBlocks {
+					if strings.Contains(k8sObject.ImageName, serviceName) {
+						archBlockID = archBloksForProcess.ToUpsert[serviceName]
+						break
 					}
 				}
-				// find by container image name
-				if !ok {
-					for serviceName := range archBlocks {
-						if strings.Contains(k8sObject.ImageName, serviceName) {
-							archBlockID = archBlocks[serviceName]
-							break
-						}
-					}
-				}
-				if archBlockID != "" {
-					createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, k8sObject.ID, archBlockID, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, common.ModelM3)
-				}
+			}
+			if archBlockID != "" {
+				createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, k8sObject.ID, archBlockID, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, common.ModelM3)
 			}
 		}
 	}
@@ -79,7 +108,7 @@ func createShadowLink(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcess
 	shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), targetDomain, ctx.Domain.GetObjectIDWithoutDomain(toId))
 
 	dbc.CMDB.ShadowObjectCanBeRecevier = true
-	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, toType))
+	system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), toType, true)))
 	dbc.CMDB.ShadowObjectCanBeRecevier = false
 
 	err := dbc.CMDB.ObjectsLinkUpdate(fromId, shadowID, tags, easyjson.NewJSONObject(), false, shadowID)
@@ -211,4 +240,57 @@ func getArchBlocksFromM3(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncC
 	}
 
 	return blocks, nil
+}
+
+func getShadowVirtualMachines(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) ([]string, error) {
+	vmIDs, err := dbc.Query.JPGQLCtraQuery(types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, common.AllObjectsQuery)
+	if err == nil {
+		ids := make([]string, len(vmIDs))
+		for _, id := range vmIDs {
+			clearID := ctx.Domain.GetObjectIDByShadowObjectID(id)
+			ids = append(ids, clearID)
+		}
+		return ids, nil
+	}
+	return nil, err
+}
+
+func getShadowArchBlocks(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) ([]string, error) {
+	ids, err := dbc.Query.JPGQLCtraQuery(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, common.AllObjectsQuery)
+	if err == nil {
+		clearIDS := make([]string, len(ids))
+		for _, id := range ids {
+			clearID := ctx.Domain.GetObjectIDByShadowObjectID(id)
+			ids = append(clearIDS, clearID)
+		}
+		return clearIDS, nil
+	}
+	return nil, err
+}
+
+type ReconcileResult struct {
+	ToUpsert map[string]string
+	ToDelete []string
+}
+
+func reconcile(m1 map[string]string, m2 []string) ReconcileResult {
+	m1IDSet := make(map[string]struct{}, len(m1))
+	for _, id := range m1 {
+		m1IDSet[id] = struct{}{}
+	}
+
+	var res ReconcileResult
+	res.ToUpsert = make(map[string]string)
+
+	for key, id := range m1 {
+		res.ToUpsert[key] = id
+	}
+
+	for _, id := range m2 {
+		if _, ok := m1IDSet[id]; !ok {
+			res.ToDelete = append(res.ToDelete, id)
+		}
+	}
+
+	return res
 }

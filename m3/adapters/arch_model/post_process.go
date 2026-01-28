@@ -28,13 +28,27 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 		le.Errorf(logCtx, "archModelPostProcess: getArchBlocks error: %v", err)
 		return
 	}
-	K8sObjects, err := getM2Objects(ctx, dbc)
+	k8sObjectsFromM2, err := getM2Objects(ctx, dbc)
 	if err != nil {
 		le.Errorf(logCtx, "archModelPostProcess: getM2Objects error: %v", err)
 		return
 	}
 
-	for _, k8sObject := range K8sObjects {
+	k8sObjectsShadow, err := getM2ShadowObjects(ctx, dbc)
+	if err != nil {
+		le.Errorf(logCtx, "archModelPostProcess: getM2Objects error: %v", err)
+		return
+	}
+
+	res := reconcile(k8sObjectsFromM2, k8sObjectsShadow)
+
+	for _, id := range res.ToDelete {
+		dbc.CMDB.ShadowObjectCanBeRecevier = true
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(ctx.Domain.CreateCustomShadowId(ctx.Domain.Name(), common.ModelM2, ctx.Domain.GetObjectIDWithoutDomain(id))))
+		dbc.CMDB.ShadowObjectCanBeRecevier = false
+	}
+
+	for _, k8sObject := range res.ToUpsert {
 		var archBlockID string
 		var ok bool
 		switch k8sObject.ObjType {
@@ -53,7 +67,7 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 		shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), common.ModelM2, ctx.Domain.GetObjectIDWithoutDomain(k8sObject.ID))
 
 		dbc.CMDB.ShadowObjectCanBeRecevier = true
-		err = dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, k8sObject.ObjType)
+		err = dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), k8sObject.ObjType, true))
 		dbc.CMDB.ShadowObjectCanBeRecevier = false
 		if err != nil {
 			le.Errorf(logCtx, "archModelPostProcess: cannot create shadow object %s: %v", shadowID, err)
@@ -62,7 +76,6 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 		// Link archBlock → shadow(Pod/Deployment)
 		system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(archBlockID, shadowID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, shadowID))
 	}
-
 }
 
 func getArchBlocks(dbc db.DBSyncClient) (map[string]string, error) {
@@ -130,4 +143,52 @@ func getM2Objects(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) 
 	getAll(types.TYPE_FOLIAGE_DEPLOYMENT)
 
 	return objects, nil
+}
+
+func getM2ShadowObjects(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) ([]string, error) {
+	var objects []string
+
+	getAll := func(_type string) {
+		ids, err := dbc.Query.JPGQLCtraQuery(_type, common.AllObjectsQuery)
+		if err == nil {
+			//
+			for _, id := range ids {
+				// m3/m2#id -> m2/id
+				// m2/id
+				clearID := ctx.Domain.GetObjectIDByShadowObjectID(id)
+				if err == nil {
+					objects = append(objects, clearID)
+				}
+			}
+		}
+	}
+
+	getAll(types.TYPE_FOLIAGE_POD)
+	getAll(types.TYPE_FOLIAGE_DEPLOYMENT)
+
+	return objects, nil
+}
+
+type ReconcileResult struct {
+	ToUpsert []K8sObject
+	ToDelete []string
+}
+
+func reconcile(m2 []K8sObject, m3 []string) ReconcileResult {
+	m2Set := make(map[string]struct{}, len(m2))
+	for _, o := range m2 {
+		m2Set[o.ID] = struct{}{}
+	}
+
+	var res ReconcileResult
+
+	res.ToUpsert = append(res.ToUpsert, m2...)
+
+	for _, id := range m3 {
+		if _, ok := m2Set[id]; !ok {
+			res.ToDelete = append(res.ToDelete, id)
+		}
+	}
+
+	return res
 }

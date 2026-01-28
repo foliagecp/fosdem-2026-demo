@@ -44,15 +44,15 @@ func infraPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunConte
 
 	for _, node := range res.ToDelete {
 		dbc.CMDB.ShadowObjectCanBeRecevier = true
-		system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(ctx.Domain.CreateCustomShadowId(ctx.Domain.Name(), common.ModelM2, node.ID)))
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(ctx.Domain.CreateCustomShadowId(ctx.Domain.Name(), common.ModelM2, ctx.Domain.GetObjectIDWithoutDomain(node.ID))))
 		dbc.CMDB.ShadowObjectCanBeRecevier = false
 	}
 
 	for _, node := range res.ToUpsert {
 		if vmID, ok := virtualMachines[node.SystemUID]; ok {
-			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), common.ModelM2, node.ID)
+			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.HubDomainName(), common.ModelM2, ctx.Domain.GetObjectIDWithoutDomain(node.ID))
 			dbc.CMDB.ShadowObjectCanBeRecevier = true
-			err = dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, types.TYPE_FOLIAGE_NODE)
+			err = dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), types.TYPE_FOLIAGE_NODE, true))
 			dbc.CMDB.ShadowObjectCanBeRecevier = false
 			if err != nil {
 				le.Errorf(logCtx, "infraPostProcess: cannot create shadow object %s: %v", shadowID, err)
@@ -106,7 +106,7 @@ func getNodes(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) ([]K
 			}
 
 			nodes = append(nodes, K8sNode{
-				ID:        ctx.Domain.GetObjectIDWithoutDomain(id),
+				ID:        id,
 				SystemUID: objData.GetByPath("body.systemUID").AsStringDefault(""),
 			})
 		}
@@ -121,10 +121,10 @@ func getShadowNodes(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient
 	ids, err := dbc.Query.JPGQLCtraQuery(types.TYPE_FOLIAGE_NODE, common.AllObjectsQuery)
 	if err == nil {
 		for _, id := range ids {
-			_, id, err := ctx.Domain.GetShadowObjectDomainAndID(id)
+			clearID := ctx.Domain.GetObjectIDByShadowObjectID(id)
 			if err == nil {
 				nodes = append(nodes, K8sNode{
-					ID: id,
+					ID: clearID,
 				})
 			}
 		}
