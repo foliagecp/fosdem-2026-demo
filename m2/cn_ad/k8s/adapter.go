@@ -52,7 +52,6 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 		return
 	}
 	for _, clusterID := range clusters {
-
 		res := new(Resources)
 
 		nodes, err := ctx.ObjectRequest(
@@ -135,7 +134,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 					nodeID, ok := nodesNameMap[nodeName]
 					if ok {
 						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, nodeID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, nodeID))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, nil, easyjson.NewJSONObject(), false, podID))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, podID))
 					}
 				}
 				ownerKind, ok := pod.ReqReply.GetByPath("data.body.ownerKind").AsString()
@@ -151,22 +150,20 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				switch ownerKind {
 				case deploymentKind:
 					if _, ok = deployments[ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false)]; ok {
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, ownerUID))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, nil, easyjson.NewJSONObject(), false, ownerUID))
 						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, podID))
 					}
 				case replicaSetKind:
 					if _, ok = replicasets[ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false)]; ok {
 						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, ownerUID))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, nil, easyjson.NewJSONObject(), false, podID))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, podID))
 					}
 				case daemonSetKind:
 				case nodeKind:
 				}
 			}
-			if errorOnPod := pod.ReqReply.GetByPath("data.error").AsBoolDefault(false); errorOnPod {
-				le.Debugf(logCtx, "propagate error from pod: %s", podID)
-				system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, common.PropagateErrorFunctionName, podID, nil, nil))
-			}
+
+			system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, common.PropagateErrorFunctionName, podID, nil, nil))
 		}
 		for replicasetID, replicaSet := range replicasets {
 			if replicaSet.ReqError == nil {
@@ -175,7 +172,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 					for deploymentID := range deployments {
 						if ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false) == deploymentID {
 							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(replicasetID, deploymentID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, deploymentID))
-							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(deploymentID, replicasetID, nil, easyjson.NewJSONObject(), false, replicasetID))
+							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(deploymentID, replicasetID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, replicasetID))
 						}
 					}
 				}

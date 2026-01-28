@@ -45,7 +45,7 @@ func infraPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunConte
 				return
 			}
 			// Link virtualMachine → shadow(Node)
-			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(vmID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID))
+			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(vmID, shadowID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, shadowID))
 		}
 	}
 }

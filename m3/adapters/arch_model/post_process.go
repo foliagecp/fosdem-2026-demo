@@ -60,7 +60,7 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 			return
 		}
 		// Link archBlock → shadow(Pod/Deployment)
-		system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(archBlockID, shadowID, nil, easyjson.NewJSONObject(), false, shadowID))
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(archBlockID, shadowID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, shadowID))
 	}
 
 }

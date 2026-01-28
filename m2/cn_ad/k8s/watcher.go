@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/foliagecp/easyjson"
-	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	"github.com/foliagecp/sdk/statefun"
@@ -290,12 +289,6 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 		}
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.k8sInfrastructureID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
-	}
-
-	//propagate error
-	if body.PathExists("error.error") {
-		payload := easyjson.NewJSONObjectWithKeyValue("error", easyjson.NewJSON(body.GetByPath("error.error").AsBoolDefault(false))).GetPtr()
-		system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, common.PropagateErrorFunctionName, objID, payload, nil))
 	}
 
 	w.markDirty()

@@ -2,7 +2,6 @@ package common
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/foliagecp/easyjson"
@@ -22,15 +21,25 @@ const PropagateErrorFunctionName = "functions.common.propagate_error"
 
 func PropagateError(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {
 	lg.Logf(lg.DebugLevel, "PropagateError() called on ID: %v", ctx.Self.ID)
+	//TODO check caller type
+	// if pod && restart > 0 error = true
+	// if !pod -> skip logic
+	// pod -> #pod <- archblock
+	// |-> rs -> deploy -> archblock
+	// __TS_prop__ in ctx ->
 
-	hasErrorField := ctx.Payload.PathExists("error")
-	if !hasErrorField {
-		lg.Logf(lg.DebugLevel,
-			"PropagateError: no error field in payload for %s, skip",
-			ctx.Self.ID,
-		)
+	// in, out links from vertex READ
+
+	// __TS_prop - break propagate (return)
+
+	types, err := ctx.GetObjectImplTypes()
+	if err != nil || len(types) == 0 {
+		lg.Logf(lg.DebugLevel, "PropagateError: failed to get types from %s: %v", ctx.Self.ID, err)
 		return
 	}
+
+	//errOnPod := pod.ReqReply.GetByPath("data.error.error").AsBoolDefault(false)
+	//plForErrPropagate := easyjson.NewJSONObjectWithKeyValue("__error", easyjson.NewJSON(errOnPod)).GetPtr()
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(ctx.Request)
 	if err != nil {
@@ -44,13 +53,17 @@ func PropagateError(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContext
 		return
 	}
 
-	errorInPayload := ctx.Payload.GetByPath("error").AsBoolDefault(false)
+	errorInPayload := ctx.Payload.GetByPath("__error").AsBoolDefault(false)
 
 	if errorInPayload {
 		propagateErrorSet(ctx, dbc, currentObject)
 	} else {
 		propagateErrorClear(ctx, dbc, currentObject)
 	}
+}
+
+func checkIncomingLinksForErrors(ctx *sfPlugins.StatefunContextProcessor, _ *db.DBSyncClient) (bool, error) {
+	return true, nil
 }
 
 func propagateErrorSet(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient, currentObject easyjson.JSON) {
@@ -62,10 +75,10 @@ func propagateErrorSet(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncCli
 		errorTS = int64(errorTSFloat)
 	}
 
-	isSourceError := ctx.Payload.GetByPath("error.error").AsBoolDefault(false)
+	isSourceError := currentObject.PathExists("body.error.error")
 
-	if currentObject.GetByPath("error.error").AsBoolDefault(false) || currentObject.GetByPathPtr("error.error_distribution").AsBoolDefault(false) {
-		existingTSFloat := currentObject.GetByPath("error.__error_timestamp_nano").AsNumericDefault(0)
+	if currentObject.GetByPath("body.error.error").AsBoolDefault(false) || currentObject.GetByPath("body.error.error_distribution").AsBoolDefault(false) {
+		existingTSFloat := currentObject.GetByPath("body.error.__error_timestamp_nano").AsNumericDefault(0)
 		if int64(existingTSFloat) >= errorTS {
 			lg.Logf(lg.DebugLevel, "PropagateError: existing error on object %s newer than propagating (%.0f >= %d)", ctx.Self.ID, existingTSFloat, errorTS)
 			return
@@ -84,14 +97,14 @@ func propagateErrorSet(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncCli
 		lg.Logf(lg.ErrorLevel, "PropagateError: cant update object %s: %v", ctx.Self.ID, err)
 	}
 
-	lg.Logf(lg.DebugLevel, "PropagateError: marked object %s with error (source=%v, ts=%d)", ctx.Self.ID, isSourceError, errorTS)
+	lg.Logf(lg.DebugLevel, "PropagateError: marked object %s with error", ctx.Self.ID)
 
 	for _, tag := range ErrorPropagateLinkTags {
 		query := fmt.Sprintf(".*[l:tags('%s')]", tag)
 		linkedIDs, err := dbc.Query.JPGQLCtraQuery(ctx.Self.ID, query)
 		lg.Logf(lg.DebugLevel, "PropagateError: outgoing linkedIDs for %s: %v", ctx.Self.ID, linkedIDs)
 		if err == nil && len(linkedIDs) > 0 {
-			propagateToLinked(ctx, linkedIDs, true, errorTS)
+			propagateToLinked(ctx, linkedIDs)
 		}
 	}
 }
@@ -99,8 +112,8 @@ func propagateErrorSet(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncCli
 func propagateErrorClear(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient, currentObject easyjson.JSON) {
 	lg.Logf(lg.DebugLevel, "PropagateError: clearing error from object %s", ctx.Self.ID)
 
-	hasError := currentObject.GetByPath("error.error").AsBoolDefault(false)
-	hasErrorDistribution := currentObject.GetByPath("error.error_distribution").AsBoolDefault(false)
+	hasError := currentObject.GetByPath("body.error.error").AsBoolDefault(false)
+	hasErrorDistribution := currentObject.GetByPath("body.error.error_distribution").AsBoolDefault(false)
 
 	if !hasError && !hasErrorDistribution {
 		lg.Logf(lg.DebugLevel, "PropagateError: object %s has no error to clear", ctx.Self.ID)
@@ -108,7 +121,7 @@ func propagateErrorClear(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncC
 	}
 
 	if !hasError {
-		hasIncomingErrors, err := checkIncomingLinksForErrors(ctx, dbc)
+		hasIncomingErrors, err := checkIncomingLinksForErrors(ctx, &dbc)
 		if err != nil {
 			lg.Logf(lg.ErrorLevel, "PropagateError: error checking incoming links for %s: %v", ctx.Self.ID, err)
 			return
@@ -135,63 +148,22 @@ func propagateErrorClear(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncC
 		linkedIDs, err := dbc.Query.JPGQLCtraQuery(ctx.Self.ID, query)
 		lg.Logf(lg.DebugLevel, "PropagateError: outgoing linkedIDs for clearing from %s: %v", ctx.Self.ID, linkedIDs)
 		if err == nil && len(linkedIDs) > 0 {
-			propagateToLinked(ctx, linkedIDs, false, 0)
+			propagateToLinked(ctx, linkedIDs)
 		}
 	}
 }
 
-func checkIncomingLinksForErrors(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) (bool, error) {
-	currentObject, err := dbc.CMDB.ObjectRead(ctx.Self.ID)
-	if err != nil {
-		return false, fmt.Errorf("cant read object: %w", err)
-	}
-
-	inLinks, ok := currentObject.GetByPath("to_objects").AsArrayString()
-	if ok {
-		for _, from := range inLinks {
-			link, err := dbc.CMDB.ObjectsLinkRead(from, ctx.Self.ID)
-			if err == nil {
-				tags, ok := link.GetByPath("tags").AsArrayString()
-				if ok {
-					if len(ErrorPropagateLinkTags) > 0 && slices.Contains(tags, ErrorPropagateLinkTags[0]) {
-						obj, err := dbc.CMDB.ObjectRead(ctx.Domain.GetObjectIDByShadowObjectID(from))
-						if err == nil {
-							if obj.GetByPath("error.error").AsBoolDefault(false) || obj.GetByPath("error.error_distribution").AsBoolDefault(false) {
-								lg.Logf(lg.InfoLevel, "Object %s has incoming errors (from %s), not clearing", ctx.Self.ID, from)
-								return true, nil
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	lg.Logf(lg.DebugLevel, "PropagateError: no incoming objects with errors for %s", ctx.Self.ID)
-	return false, nil
-}
-
-func propagateToLinked(ctx *sfPlugins.StatefunContextProcessor, linkedIDs []string, setError bool, errorTS int64) {
+func propagateToLinked(ctx *sfPlugins.StatefunContextProcessor, linkedIDs []string) {
 	for _, linkedID := range linkedIDs {
 		if linkedID == ctx.Self.ID || strings.HasSuffix(linkedID, ctx.Self.ID) {
 			continue
-		}
-
-		var payload *easyjson.JSON
-		if setError {
-			p := easyjson.NewJSONObject()
-			p.SetByPath("error.error_distribution", easyjson.NewJSON(true))
-			p.SetByPath("error.__error_timestamp_nano", easyjson.NewJSON(errorTS))
-			payload = &p
-		} else {
-			payload = nil
 		}
 
 		system.MsgOnErrorReturn(ctx.Signal(
 			sfPlugins.AutoSignalSelect,
 			PropagateErrorFunctionName,
 			ctx.Domain.GetObjectIDByShadowObjectID(linkedID),
-			payload,
+			ctx.Payload,
 			nil,
 		))
 	}

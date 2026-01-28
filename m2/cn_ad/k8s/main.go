@@ -158,7 +158,7 @@ func adapterUpdateStatus(dbc db.DBSyncClient) {
 }
 
 func start() {
-	system.GlobalPrometrics = system.NewPrometrics("", ":9901")
+	system.GlobalPrometrics = system.NewPrometrics("", ":19901")
 	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, apps.APP_CN_AD_K8S).
 		SetDomainRoutersHandling(false).UseJSDomainAsHubDomainName()); err == nil {
 		registerFunctionTypes(runtime)

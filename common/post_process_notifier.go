@@ -30,7 +30,6 @@ func PostProcessNotifier(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProc
 			for _, uuid := range uuids {
 				if typename, ok := getPostProcessFunction(uuid); ok {
 					system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, typename, uuid, nil, nil))
-
 				}
 			}
 		}
