@@ -173,7 +173,7 @@ func getVirtualMachinesFromM1(ctx *sfPlugins.StatefunContextProcessor, dbc db.DB
 			continue
 		}
 
-		productUUID, ok := objData.GetByPath("body.sources.lshw.configuration.uuid").AsString()
+		productUUID, ok := objData.GetByPath("body.uuid").AsString()
 		if ok {
 			vms[productUUID] = vmID
 		}

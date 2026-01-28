@@ -65,7 +65,7 @@ func getVirtualMachines(dbc db.DBSyncClient) (map[string]string, error) {
 			continue
 		}
 
-		productUUID, ok := objData.GetByPath("body.sources.lshw.configuration.uuid").AsString()
+		productUUID, ok := objData.GetByPath("body.uuid").AsString()
 		if ok {
 			vms[productUUID] = vmID
 		}

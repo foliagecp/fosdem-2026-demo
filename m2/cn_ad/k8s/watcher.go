@@ -223,9 +223,7 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 
 		if cs := resource.Status.ContainerStatuses; len(cs) > 0 {
 			m2Object.SetByPath("restartCount", easyjson.NewJSON(cs[0].RestartCount))
-			if cs[0].RestartCount > 0 {
-				m2Object.SetByPath("error.error", easyjson.NewJSON(true))
-			}
+			m2Object.SetByPath("error.error", easyjson.NewJSON(cs[0].RestartCount > 0))
 		}
 
 		typeName = types.TYPE_FOLIAGE_POD
@@ -296,7 +294,8 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 
 	//propagate error
 	if body.PathExists("error.error") {
-		system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, common.PropagateErrorFunctionName, objID, nil, nil))
+		payload := easyjson.NewJSONObjectWithKeyValue("error", easyjson.NewJSON(body.GetByPath("error.error").AsBoolDefault(false))).GetPtr()
+		system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, common.PropagateErrorFunctionName, objID, payload, nil))
 	}
 
 	w.markDirty()

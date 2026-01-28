@@ -73,7 +73,6 @@ func datacenterPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.Statefun
 
 func registerFunctionTypes(runtime *statefun.Runtime) {
 	statefun.NewFunctionType(runtime, postProcessFoliageFunctionName, datacenterPostProcess, *statefun.NewFunctionTypeConfig())
-	statefun.NewFunctionType(runtime, common.PropagateErrorFunctionName, common.PropagateError, *statefun.NewFunctionTypeConfig().SetMultipleInstancesAllowance(true))
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
