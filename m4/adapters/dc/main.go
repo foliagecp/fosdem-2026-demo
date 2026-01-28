@@ -81,14 +81,19 @@ func datacenterPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.Statefun
 			iDs, err := dbc.Query.JPGQLCtraQuery(linked.Type, common.AllObjectsQuery)
 			if err == nil {
 				for _, uuid := range iDs {
+					dbc.CMDB.ShadowObjectCanBeRecevier = true
 					system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(uuid))
+					dbc.CMDB.ShadowObjectCanBeRecevier = false
 				}
 			}
 		}
 		for _, uuid := range uuids {
 			shadowID := ctx.Domain.CreateCustomShadowId(ctx.Domain.Name(), linked.Domain, ctx.Domain.GetObjectIDWithoutDomain(uuid))
-			system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, linked.Type))
+			dbc.CMDB.ShadowObjectCanBeRecevier = true
+			system.MsgOnErrorReturn(dbc.CMDB.ObjectUpdate(shadowID, easyjson.NewJSONObject(), false, ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), linked.Type, true)))
 			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(datacenterRootUUID, shadowID, []string{linkedModelTag}, easyjson.NewJSONObject(), false, ctx.Domain.GetObjectIDWithoutDomain(uuid)))
+			dbc.CMDB.ShadowObjectCanBeRecevier = false
+
 			isReady = true
 
 			lg.Logf(lg.DebugLevel, "added %s to m4", linked.Domain)
