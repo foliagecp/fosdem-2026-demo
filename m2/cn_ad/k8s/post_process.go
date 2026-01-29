@@ -63,9 +63,9 @@ func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.S
 		return
 	}
 
-	archBloksForProcess := reconcile(archBlocks, archBlocksShadow)
+	archBlocksForProcess := reconcile(archBlocks, archBlocksShadow)
 
-	for _, id := range archBloksForProcess.ToDelete {
+	for _, id := range archBlocksForProcess.ToDelete {
 		dbc.CMDB.ShadowObjectCanBeRecevier = true
 		system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(ctx.Domain.CreateCustomShadowId(ctx.Domain.Name(), common.ModelM3, ctx.Domain.GetObjectIDWithoutDomain(id))))
 		dbc.CMDB.ShadowObjectCanBeRecevier = false
@@ -79,12 +79,12 @@ func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.S
 			var ok bool
 			switch k8sObject.ObjType {
 			case types.TYPE_FOLIAGE_POD:
-				if archBlockID, ok = archBloksForProcess.ToUpsert[k8sObject.LabelsApp]; !ok {
+				if archBlockID, ok = archBlocksForProcess.ToUpsert[k8sObject.LabelsApp]; !ok {
 					le.Warnf(logCtx, "k8sInfrastructurePostProcess: cannot find arch block for pod %v", k8sObject.LabelsApp)
 				}
 			case types.TYPE_FOLIAGE_DEPLOYMENT:
 				tags = common.ErrorPropagateLinkTags
-				if archBlockID, ok = archBloksForProcess.ToUpsert[k8sObject.Name]; !ok {
+				if archBlockID, ok = archBlocksForProcess.ToUpsert[k8sObject.Name]; !ok {
 					le.Warnf(logCtx, "k8sInfrastructurePostProcess: cannot find arch block for deployment %v", k8sObject.Name)
 				}
 			}
@@ -92,7 +92,7 @@ func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.S
 			if !ok {
 				for serviceName := range archBlocks {
 					if strings.Contains(k8sObject.ImageName, serviceName) {
-						archBlockID = archBloksForProcess.ToUpsert[serviceName]
+						archBlockID = archBlocksForProcess.ToUpsert[serviceName]
 						break
 					}
 				}
@@ -103,7 +103,7 @@ func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.S
 		}
 	}
 
-	common.PostProcessNotifier(dbc, ctx)
+	postProcessNotifier(dbc, ctx)
 }
 
 func createShadowLink(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor, tags []string, fromId, toId, toType, targetDomain string) bool {
@@ -247,7 +247,7 @@ func getArchBlocksFromM3(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncC
 func getShadowVirtualMachines(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) ([]string, error) {
 	vmIDs, err := dbc.Query.JPGQLCtraQuery(types.TYPE_FOLIAGE_ADAPTER_VIRTUAL_MACHINE, common.AllObjectsQuery)
 	if err == nil {
-		ids := make([]string, len(vmIDs))
+		ids := make([]string, 0, len(vmIDs))
 		for _, id := range vmIDs {
 			clearID := ctx.Domain.GetObjectIDByShadowObjectID(id)
 			ids = append(ids, clearID)
@@ -260,7 +260,7 @@ func getShadowVirtualMachines(ctx *sfPlugins.StatefunContextProcessor, dbc db.DB
 func getShadowArchBlocks(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) ([]string, error) {
 	ids, err := dbc.Query.JPGQLCtraQuery(types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, common.AllObjectsQuery)
 	if err == nil {
-		clearIDS := make([]string, len(ids))
+		clearIDS := make([]string, 0, len(ids))
 		for _, id := range ids {
 			clearID := ctx.Domain.GetObjectIDByShadowObjectID(id)
 			ids = append(clearIDS, clearID)

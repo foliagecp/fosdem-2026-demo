@@ -7,11 +7,4 @@ const (
 	ModelM4 = "m4"
 )
 
-const (
-	M1RootObject = "infra"
-	M2RootObject = "k8s_infrastructure"
-	M3RootObject = "arch_model"
-	M4RootObject = "datacenter"
-)
-
 const AllObjectsQuery = ".*[l:type('__object')]"
