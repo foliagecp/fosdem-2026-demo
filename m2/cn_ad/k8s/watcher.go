@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/foliagecp/easyjson"
+	"github.com/foliagecp/fosdem-2026-demo/common"
 	"github.com/foliagecp/fosdem-2026-demo/m2/common/types"
 	"github.com/foliagecp/sdk/clients/go/db"
 	"github.com/foliagecp/sdk/statefun"
@@ -266,7 +267,12 @@ func (w *Watcher) sync(eventType EventType, obj interface{}) {
 func (w *Watcher) processResource(eventType EventType, objID string, body easyjson.JSON, typeName string) {
 	switch eventType {
 	case DELETE:
-		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectDelete(objID))
+		if typeName == types.TYPE_FOLIAGE_POD {
+			pl := easyjson.NewJSONObjectWithKeyValue("__delete", easyjson.NewJSON(true)).GetPtr()
+			system.MsgOnErrorReturn(w.runtime.Signal(sfPlugins.AutoSignalSelect, common.PropagateErrorFunctionName, objID, pl, nil))
+		} else {
+			system.MsgOnErrorReturn(w.dbc.CMDB.ObjectDelete(objID))
+		}
 	case ADD:
 		if err := w.dbc.CMDB.ObjectUpdate(objID, body, false, typeName); err != nil {
 			system.MsgOnErrorReturn(err)

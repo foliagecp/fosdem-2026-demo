@@ -52,6 +52,10 @@ func PropagateError(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContext
 		blastRadius = int(blastRadiusFloat)
 	}
 
+	if ctx.Payload.GetByPath("__delete").AsBoolDefault(false) {
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(ctx.Self.ID))
+	}
+
 	propagateToLinked(ctx, propagateErrorRecalculate(ctx, dbc, currentObject, errorTS, blastRadius), errorTS, blastRadius)
 }
 
