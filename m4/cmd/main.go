@@ -109,7 +109,7 @@ func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
 
 func start() {
 	system.GlobalPrometrics = system.NewPrometrics("", ":9901")
-	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, apps.APP_CMD).UseJSDomainAsHubDomainName()); err == nil {
+	if runtime, err := statefun.NewRuntime(*statefun.NewRuntimeConfigSimple(natsURL, apps.APP_CMD).UseJSDomainAsHubDomainName().SetDomainRoutersHandling(true)); err == nil {
 		registerFunctionTypes(runtime)
 		runtime.RegisterOnAfterStartFunction(onAfterStart, false)
 		if err = runtime.Start(context.Background(), cache.NewCacheConfig("graph_cache")); err != nil {
