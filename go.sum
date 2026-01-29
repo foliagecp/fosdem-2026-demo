@@ -18,8 +18,8 @@ github.com/emicklei/go-restful/v3 v3.12.2 h1:DhwDP0vY3k8ZzE0RunuJy8GhNpPL6zqLkDf
 github.com/emicklei/go-restful/v3 v3.12.2/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/foliagecp/easyjson v0.1.10 h1:jDUwQEOn9kFhPWMqLyjJtq8STIIsdPK1ff4rlvMlg94=
 github.com/foliagecp/easyjson v0.1.10/go.mod h1:GTJFL3X3UXLq65yYiZZ6aOv6EMUtxGHhblPPvW7a5/s=
-github.com/foliagecp/sdk v0.1.14-dev26012026 h1:C3ysjG+43x7/NXZ0vyeGZzxQVTnw5vDADWzccwegbZ0=
-github.com/foliagecp/sdk v0.1.14-dev26012026/go.mod h1:mcFiD5A7VDfspdnT58ZQ9dt2t55rLeNh2fZQ3ZuglYE=
+github.com/foliagecp/sdk v0.1.15-dev29012026 h1:0SW9EeByuhMiD4GW6eFI9zZZDdeNfNhAfvr1hmoZ+3g=
+github.com/foliagecp/sdk v0.1.15-dev29012026/go.mod h1:mcFiD5A7VDfspdnT58ZQ9dt2t55rLeNh2fZQ3ZuglYE=
 github.com/foliagecp/ui-app-lib v0.1.12-dev26012026 h1:1F8TIb6HGVlxHdNLz10Ucz7IK54ZmBmh93Mz4Luc1YY=
 github.com/foliagecp/ui-app-lib v0.1.12-dev26012026/go.mod h1:H5DpPA9hka6+G8fsxkabgdtFiW2G7IuFUp58TFqCbm8=
 github.com/fxamacker/cbor/v2 v2.9.0 h1:NpKPmjDBgUfBms6tr6JZkTHtfFGcMKsw3eGcmD/sapM=

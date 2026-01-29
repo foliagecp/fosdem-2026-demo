@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/foliagecp/easyjson v0.1.10
-	github.com/foliagecp/sdk v0.1.14-dev26012026
+	github.com/foliagecp/sdk v0.1.15-dev29012026
 	github.com/foliagecp/ui-app-lib v0.1.12-dev26012026
 	golang.org/x/crypto v0.44.0
 	golang.org/x/net v0.47.0
