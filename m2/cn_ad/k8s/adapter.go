@@ -134,7 +134,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 					nodeID, ok := nodesNameMap[nodeName]
 					if ok {
 						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, nodeID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, nodeID))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, podID))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(nodeID, podID, common.ErrorRelyLinkTags, easyjson.NewJSONObject(), false, podID))
 					}
 				}
 				ownerKind, ok := pod.ReqReply.GetByPath("data.body.ownerKind").AsString()
@@ -156,7 +156,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 				case replicaSetKind:
 					if _, ok = replicasets[ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false)]; ok {
 						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(podID, ownerUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, ownerUID))
-						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, podID))
+						system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(ownerUID, podID, common.ErrorRelyLinkTags, easyjson.NewJSONObject(), false, podID))
 					}
 				case daemonSetKind:
 				case nodeKind:
@@ -172,7 +172,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 					for deploymentID := range deployments {
 						if ctx.Domain.CreateObjectIDWithDomain(ctx.Domain.Name(), ownerUID, false) == deploymentID {
 							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(replicasetID, deploymentID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, deploymentID))
-							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(deploymentID, replicasetID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, replicasetID))
+							system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(deploymentID, replicasetID, common.ErrorRelyLinkTags, easyjson.NewJSONObject(), false, replicasetID))
 						}
 					}
 				}

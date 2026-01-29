@@ -49,6 +49,7 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 	}
 
 	for _, k8sObject := range res.ToUpsert {
+		var tags []string
 		var archBlockID string
 		var ok bool
 		switch k8sObject.ObjType {
@@ -58,6 +59,7 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 				continue
 			}
 		case types.TYPE_FOLIAGE_DEPLOYMENT:
+			tags = common.ErrorRelyLinkTags
 			if archBlockID, ok = archBlocks[k8sObject.Name]; !ok {
 				le.Warnf(logCtx, "archModelPostProcess: k8sObject.Name %s not found in archBlocks", k8sObject.Name)
 				continue
@@ -74,7 +76,7 @@ func archModelPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunC
 			return
 		}
 		// Link archBlock → shadow(Pod/Deployment)
-		system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(archBlockID, shadowID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, shadowID))
+		system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(archBlockID, shadowID, tags, easyjson.NewJSONObject(), false, shadowID))
 	}
 }
 

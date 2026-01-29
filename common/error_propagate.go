@@ -12,6 +12,7 @@ import (
 )
 
 var ErrorPropagateLinkTags = []string{"__error_propagate"}
+var ErrorRelyLinkTags = []string{"__error_rely"}
 
 const PropagateErrorFunctionName = "functions.common.propagate_error"
 
@@ -67,7 +68,8 @@ func propagateErrorRecalculate(ctx *sfPlugins.StatefunContextProcessor, dbc db.D
 		return nil
 	}
 
-	linkedIDs := getLinked(ctx, dbc)
+	propagateLinkedIDs := getLinked(ctx, dbc, ErrorPropagateLinkTags)
+	relyLinkedIDs := getLinked(ctx, dbc, ErrorRelyLinkTags)
 
 	propagateErrorPayload := easyjson.NewJSONObject()
 	propagateErrorPayload.SetByPath("error.__error_timestamp_nano", easyjson.NewJSON(errorTS))
@@ -81,7 +83,7 @@ func propagateErrorRecalculate(ctx *sfPlugins.StatefunContextProcessor, dbc db.D
 		}
 		propagateErrorPayload.SetByPath("error.error", easyjson.NewJSON(true))
 	}
-	if isAnyOfMyNeighbourInfected(ctx, dbc, linkedIDs, blastRadius) {
+	if isAnyOfMyNeighbourInfected(ctx, dbc, relyLinkedIDs, blastRadius) {
 		propagateErrorPayload.SetByPath("error.error_distribution", easyjson.NewJSON(true))
 	}
 
@@ -89,7 +91,7 @@ func propagateErrorRecalculate(ctx *sfPlugins.StatefunContextProcessor, dbc db.D
 		lg.Logf(lg.ErrorLevel, "PropagateError: cant update object %s: %v", ctx.Self.ID, err)
 	}
 
-	return linkedIDs
+	return propagateLinkedIDs
 }
 
 func amIPatientZero(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient, currentObject easyjson.JSON) (bool, bool) {
@@ -132,9 +134,9 @@ func isAnyOfMyNeighbourInfected(ctx *sfPlugins.StatefunContextProcessor, dbc db.
 	return false
 }
 
-func getLinked(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient) []string {
+func getLinked(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient, linkTags []string) []string {
 	allLinkedIDs := []string{}
-	for _, tag := range ErrorPropagateLinkTags {
+	for _, tag := range linkTags {
 		query := fmt.Sprintf(".*[l:tags('%s')]", tag)
 		linkedIDs, err := dbc.Query.JPGQLCtraQuery(ctx.Self.ID, query)
 		lg.Logf(lg.DebugLevel, "PropagateError: outgoing linkedIDs for clearing from %s: %v", ctx.Self.ID, linkedIDs)

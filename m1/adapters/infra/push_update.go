@@ -148,7 +148,7 @@ func ensureHypervisor(dbc db.DBSyncClient, serverUUID, hostID string) string {
 	// infra -> hypervisor
 	ensureInfraLink(dbc, hypUUID, hypUUID)
 	// server <-> hypervisor
-	_ = dbc.CMDB.ObjectsLinkUpdate(serverUUID, hypUUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, "kvm")
+	_ = dbc.CMDB.ObjectsLinkUpdate(serverUUID, hypUUID, common.ErrorRelyLinkTags, easyjson.NewJSONObject(), false, "kvm")
 	_ = dbc.CMDB.ObjectsLinkUpdate(hypUUID, serverUUID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, "server")
 	return hypUUID
 }

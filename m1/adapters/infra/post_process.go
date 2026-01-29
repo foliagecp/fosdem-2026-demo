@@ -60,7 +60,7 @@ func infraPostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunConte
 			}
 			// Link virtualMachine → shadow(Node)
 			dbc.CMDB.ShadowObjectCanBeRecevier = true
-			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(vmID, shadowID, common.ErrorPropagateLinkTags, easyjson.NewJSONObject(), false, shadowID))
+			system.MsgOnErrorReturn(dbc.CMDB.ObjectsLinkUpdate(vmID, shadowID, common.ErrorRelyLinkTags, easyjson.NewJSONObject(), false, shadowID))
 			dbc.CMDB.ShadowObjectCanBeRecevier = false
 		}
 	}

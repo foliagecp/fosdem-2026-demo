@@ -74,6 +74,7 @@ func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.S
 	k8sObjects, err := getK8sObjects(dbc)
 	if err == nil {
 		for _, k8sObject := range k8sObjects {
+			var tags []string
 			var archBlockID string
 			var ok bool
 			switch k8sObject.ObjType {
@@ -82,6 +83,7 @@ func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.S
 					le.Warnf(logCtx, "k8sInfrastructurePostProcess: cannot find arch block for pod %v", k8sObject.LabelsApp)
 				}
 			case types.TYPE_FOLIAGE_DEPLOYMENT:
+				tags = common.ErrorPropagateLinkTags
 				if archBlockID, ok = archBloksForProcess.ToUpsert[k8sObject.Name]; !ok {
 					le.Warnf(logCtx, "k8sInfrastructurePostProcess: cannot find arch block for deployment %v", k8sObject.Name)
 				}
@@ -96,7 +98,7 @@ func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.S
 				}
 			}
 			if archBlockID != "" {
-				createShadowLink(dbc, ctx, common.ErrorPropagateLinkTags, k8sObject.ID, archBlockID, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, common.ModelM3)
+				createShadowLink(dbc, ctx, tags, k8sObject.ID, archBlockID, types.TYPE_FOLIAGE_ADAPTER_ARCH_BLOCK, common.ModelM3)
 			}
 		}
 	}
