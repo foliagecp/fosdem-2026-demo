@@ -184,7 +184,7 @@ func build(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor
 	}
 
 	adapterUpdateStatus(dbc)
-	system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, postProcessFnName, ctx.Self.ID, nil, nil))
+	common.PostProcessNotifier(dbc, ctx)
 }
 
 func status(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContextProcessor) {

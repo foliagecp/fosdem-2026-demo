@@ -165,7 +165,7 @@ func buildArchModel(ctx *sfPlugins.StatefunContextProcessor, doc easyjson.JSON) 
 		}
 	}
 
-	system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, postProcessFnName, ctx.Self.ID, nil, nil))
+	common.PostProcessNotifier(dbc, ctx)
 
 	return nil
 }

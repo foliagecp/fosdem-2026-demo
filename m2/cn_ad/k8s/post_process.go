@@ -102,8 +102,6 @@ func k8sInfrastructurePostProcess(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.S
 			}
 		}
 	}
-
-	postProcessNotifier(dbc, ctx)
 }
 
 func createShadowLink(dbc db.DBSyncClient, ctx *sfPlugins.StatefunContextProcessor, tags []string, fromId, toId, toType, targetDomain string) bool {

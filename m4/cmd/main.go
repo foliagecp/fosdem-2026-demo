@@ -92,6 +92,7 @@ func cmdUpdateStatus(runtime *statefun.Runtime) {
 }
 
 func onAfterStart(ctx context.Context, runtime *statefun.Runtime) error {
+	lg.Logf(lg.DebugLevel, "::::::::::::::::::: runtime started DomainName=%s, HubDomainName=%s", runtime.Domain.Name(), runtime.Domain.HubDomainName())
 	runtime.Domain.SetWeakClusterDomains([]string{common.ModelM1, common.ModelM2, common.ModelM3})
 
 	dbc, err := db.NewDBSyncClientFromRequestFunction(runtime.Request)

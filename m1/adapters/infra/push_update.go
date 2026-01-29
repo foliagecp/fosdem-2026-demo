@@ -11,7 +11,6 @@ import (
 	"github.com/foliagecp/sdk/clients/go/db"
 	lg "github.com/foliagecp/sdk/statefun/logger"
 	sfPlugins "github.com/foliagecp/sdk/statefun/plugins"
-	"github.com/foliagecp/sdk/statefun/system"
 )
 
 // Command identifiers used across agents, connectors and this adapter.
@@ -115,7 +114,7 @@ func infraPushUpdate(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContex
 	}
 
 	adapterUpdateStatus(dbc)
-	system.MsgOnErrorReturn(ctx.Signal(sfPlugins.AutoSignalSelect, postProcessingFnName, ctx.Self.ID, nil, nil))
+	common.PostProcessNotifier(dbc, ctx)
 }
 
 func ensureInfraLink(dbc db.DBSyncClient, childUUID, linkName string) {
