@@ -42,7 +42,7 @@ services:
       cmd:
         condition: service_healthy
     volumes:
-      - ./kubeconfig:/kubeconfig:ro
+      - /opt/foliage/kubeconfig:/kubeconfig:ro
       - ./dumps/:/dumps/
     build:
       context: ..
