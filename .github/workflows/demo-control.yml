@@ -1,0 +1,40 @@
+name: Control docker compose (no cleanup)
+
+on:
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Model name"
+        type: choice
+        options: [m1, m2, m3, m4]
+      action:
+        description: "Command"
+        type: choice
+        options: [start, stop, restart, status]
+
+jobs:
+  control:
+    strategy:
+      matrix:
+        target_module: ["${{ github.event.inputs.module }}"]
+
+    runs-on: [self-hosted, "${{ matrix.target_module }}"]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Control compose
+        working-directory: ${{ github.event.inputs.module }}
+        run: |
+          case "${{ inputs.action }}" in
+            start)   docker compose up -d ;;
+            stop)    docker compose stop ;;
+            restart) docker compose restart ;;
+            status)  docker compose ps ;;
+          esac
+
+      - name: Show Logs on Failure
+        if: failure()
+        working-directory: ${{ github.event.inputs.module }}
+        run: docker compose logs --tail=50
