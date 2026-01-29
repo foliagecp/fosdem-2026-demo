@@ -267,28 +267,20 @@ func (w *Watcher) processResource(eventType EventType, objID string, body easyjs
 	switch eventType {
 	case DELETE:
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectDelete(objID))
-		if typeName == types.TYPE_FOLIAGE_POD || typeName == types.TYPE_FOLIAGE_DEPLOYMENT || typeName == types.TYPE_FOLIAGE_NODE {
-			body.SetByPath("type", easyjson.NewJSON(typeName))
-			body.SetByPath("operation", easyjson.NewJSON("delete"))
-		}
 	case ADD:
-		if err := w.dbc.CMDB.ObjectCreate(objID, typeName, body); err != nil {
-			system.MsgOnErrorReturn(err)
-			return
-		}
-		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
-		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.k8sInfrastructureID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
-		if typeName == types.TYPE_FOLIAGE_POD || typeName == types.TYPE_FOLIAGE_DEPLOYMENT || typeName == types.TYPE_FOLIAGE_NODE {
-			body.SetByPath("type", easyjson.NewJSON(typeName))
-			body.SetByPath("operation", easyjson.NewJSON("add"))
-		}
-	case UPDATE:
 		if err := w.dbc.CMDB.ObjectUpdate(objID, body, false, typeName); err != nil {
 			system.MsgOnErrorReturn(err)
 			return
 		}
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
 		system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.k8sInfrastructureID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
+	case UPDATE:
+		if err := w.dbc.CMDB.ObjectUpdate(objID, body, false, typeName); err != nil {
+			system.MsgOnErrorReturn(err)
+			return
+		}
+		//system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.clusterID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
+		//system.MsgOnErrorReturn(w.dbc.CMDB.ObjectsLinkUpdate(w.k8sInfrastructureID, objID, []string{typeName}, easyjson.NewJSONObject(), false, objID))
 	}
 
 	w.markDirty()
