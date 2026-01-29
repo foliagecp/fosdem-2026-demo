@@ -52,11 +52,13 @@ func PropagateError(_ sfPlugins.StatefunExecutor, ctx *sfPlugins.StatefunContext
 		blastRadius = int(blastRadiusFloat)
 	}
 
+	idForPropagation := propagateErrorRecalculate(ctx, dbc, currentObject, errorTS, blastRadius)
+
 	if ctx.Payload.GetByPath("__delete").AsBoolDefault(false) {
 		system.MsgOnErrorReturn(dbc.CMDB.ObjectDelete(ctx.Self.ID))
 	}
 
-	propagateToLinked(ctx, propagateErrorRecalculate(ctx, dbc, currentObject, errorTS, blastRadius), errorTS, blastRadius)
+	propagateToLinked(ctx, idForPropagation, errorTS, blastRadius)
 }
 
 func propagateErrorRecalculate(ctx *sfPlugins.StatefunContextProcessor, dbc db.DBSyncClient, currentObject easyjson.JSON, errorTS int64, blastRadius int) (continuePropagationIds []string) {
