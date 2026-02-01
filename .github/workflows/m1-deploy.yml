@@ -1,10 +1,10 @@
 name: Deploy m1
 
 on:
-  push:
-    branches: [ dev ]
-    paths:
-      - 'm1/**'
+#  push:
+#    branches: [ dev ]
+#    paths:
+#      - 'm1/**'
   workflow_dispatch:
 
 jobs:
