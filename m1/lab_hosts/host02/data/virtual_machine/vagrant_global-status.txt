@@ -1,0 +1,5 @@
+1770035108,,metadata,machine-count,1
+1770035108,,machine-id,7b38f29
+1770035108,,provider-name,libvirt
+1770035108,,machine-home,/srv/vagrant/polar-bear
+1770035108,,state,running

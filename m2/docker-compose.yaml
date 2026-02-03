@@ -42,8 +42,8 @@ services:
       cmd:
         condition: service_healthy
     volumes:
-      - /opt/foliage/kubeconfig:/kubeconfig:ro
-      - ./dumps/:/dumps/
+#      - /opt/foliage/kubeconfig:/kubeconfig:ro
+      - ./dumps:/dumps/
     build:
       context: ..
       dockerfile: m2/cn_ad/k8s/Dockerfile

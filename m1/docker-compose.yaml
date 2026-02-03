@@ -101,67 +101,67 @@ services:
     networks:
       - m1net
 
-#  lab_host01:
-#    build:
-#      context: ..
-#      dockerfile: ./m1/lab_hosts/host01/Dockerfile
-#    environment:
-#      NATS_HOST: nats
-#      NATS_PORT: 4222
-#      NATS_USER: nats
-#      NATS_PASS: foliage
-#      FO_DOMAIN: m1
-#      VERBOSE: "1"
-#      INTERVAL_SEC: 5
-#      PUSH_LSHW_SERVER_FN: function.connector.server.lshw.push_update
-#      PUSH_LSMOD_FN: function.connector.hypervisor.lsmod.push_update
-#      PUSH_LSHW_VM_FN: function.connector.virtual_machine.lshw.push_update
-#      PUSH_VAGRANT_GLOBAL_STATUS_FN: function.connector.virtual_machine.vagrant_global_status.push_update
-#    ports:
-#      - "2221:22"
-#    depends_on:
-#      cmd:
-#        condition: service_healthy
-#      cn_server:
-#        condition: service_started
-#      cn_hypervisor:
-#        condition: service_started
-#      cn_virtual_machine:
-#        condition: service_started
-#    networks:
-#      m1net:
-#        ipv4_address: 192.168.157.11
-#
-#  lab_host02:
-#    build:
-#      context: ..
-#      dockerfile: ./m1/lab_hosts/host02/Dockerfile
-#    environment:
-#      NATS_HOST: nats
-#      NATS_PORT: 4222
-#      NATS_USER: nats
-#      NATS_PASS: foliage
-#      FO_DOMAIN: m1
-#      VERBOSE: "1"
-#      INTERVAL_SEC: 5
-#      PUSH_LSHW_SERVER_FN: function.connector.server.lshw.push_update
-#      PUSH_LSMOD_FN: function.connector.hypervisor.lsmod.push_update
-#      PUSH_LSHW_VM_FN: function.connector.virtual_machine.lshw.push_update
-#      PUSH_VAGRANT_GLOBAL_STATUS_FN: function.connector.virtual_machine.vagrant_global_status.push_update
-#    ports:
-#      - "2222:22"
-#    depends_on:
-#      cmd:
-#        condition: service_healthy
-#      cn_server:
-#        condition: service_started
-#      cn_hypervisor:
-#        condition: service_started
-#      cn_virtual_machine:
-#        condition: service_started
-#    networks:
-#      m1net:
-#        ipv4_address: 192.168.157.12
+  lab_host01:
+    build:
+      context: ..
+      dockerfile: ./m1/lab_hosts/host01/Dockerfile
+    environment:
+      NATS_HOST: nats
+      NATS_PORT: 4222
+      NATS_USER: nats
+      NATS_PASS: foliage
+      FO_DOMAIN: m1
+      VERBOSE: "1"
+      INTERVAL_SEC: 5
+      PUSH_LSHW_SERVER_FN: function.connector.server.lshw.push_update
+      PUSH_LSMOD_FN: function.connector.hypervisor.lsmod.push_update
+      PUSH_LSHW_VM_FN: function.connector.virtual_machine.lshw.push_update
+      PUSH_VAGRANT_GLOBAL_STATUS_FN: function.connector.virtual_machine.vagrant_global_status.push_update
+    ports:
+      - "2221:22"
+    depends_on:
+      cmd:
+        condition: service_healthy
+      cn_server:
+        condition: service_started
+      cn_hypervisor:
+        condition: service_started
+      cn_virtual_machine:
+        condition: service_started
+    networks:
+      m1net:
+        ipv4_address: 192.168.157.11
+
+  lab_host02:
+    build:
+      context: ..
+      dockerfile: ./m1/lab_hosts/host02/Dockerfile
+    environment:
+      NATS_HOST: nats
+      NATS_PORT: 4222
+      NATS_USER: nats
+      NATS_PASS: foliage
+      FO_DOMAIN: m1
+      VERBOSE: "1"
+      INTERVAL_SEC: 5
+      PUSH_LSHW_SERVER_FN: function.connector.server.lshw.push_update
+      PUSH_LSMOD_FN: function.connector.hypervisor.lsmod.push_update
+      PUSH_LSHW_VM_FN: function.connector.virtual_machine.lshw.push_update
+      PUSH_VAGRANT_GLOBAL_STATUS_FN: function.connector.virtual_machine.vagrant_global_status.push_update
+    ports:
+      - "2222:22"
+    depends_on:
+      cmd:
+        condition: service_healthy
+      cn_server:
+        condition: service_started
+      cn_hypervisor:
+        condition: service_started
+      cn_virtual_machine:
+        condition: service_started
+    networks:
+      m1net:
+        ipv4_address: 192.168.157.12
 
 volumes:
   nats_data:
